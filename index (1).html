@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- SDK YouTube Playables : doit être le PREMIER script de la page (inactif quand on joue en local) -->
+<script src="https://www.youtube.com/game_api/v1"></script>
+<title>HUNGRY PETS</title>
+
+<style>
+  /* ====== 1. COULEURS ET TAILLES (modifie-les ici) ====== */
+  :root {
+    --bg: #0e0f1c;
+    --panel: #1a1c33;
+    --panel2: #26294d;
+    --txt: #f2f3ff;
+    --mute: #9a9dc4;
+    --accent: #7c5cff;
+    --gold: #ffc94d;
+    --ok: #3ddc84;
+    --side: max(220px, min(92vw, 440px, calc(100dvh - 340px)));  /* taille de la grille */
+  }
+
+  /* ====== 2. BASE ====== */
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg); color: var(--txt);
+    font-family: "Trebuchet MS", "Segoe UI", Arial, sans-serif;
+    display: flex; flex-direction: column;
+    -webkit-user-select: none; user-select: none; touch-action: manipulation;
+  }
+  button { font: inherit; color: inherit; border: none; cursor: pointer; }
+  .hidden { display: none !important; }
+
+  /* Barre supérieure permanente */
+  .topbar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 14px; padding-top: max(10px, env(safe-area-inset-top));
+    background: var(--panel);
+  }
+  .brand { font-weight: bold; letter-spacing: 0.05em; }
+  .coins { background: var(--bg); color: var(--gold); padding: 6px 14px; border-radius: 999px; font-weight: bold; }
+
+  /* Écrans (un seul visible à la fois) */
+  .screen {
+    flex: 1; min-height: 0; display: none; flex-direction: column; align-items: center;
+    gap: 14px; padding: 16px; overflow-y: auto;
+  }
+  .screen.active { display: flex; }
+  #menu > :first-child { margin-top: auto; }      /* centre le menu sans jamais le couper */
+  #menu > :last-child { margin-bottom: auto; }
+  .title { margin: 0; font-size: clamp(2.2rem, 9vw, 3.6rem); letter-spacing: 0.06em; text-align: center; }
+  .sub { margin: 0 0 12px; color: var(--mute); text-align: center; }
+  .row { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+
+  /* Boutons */
+  .btn { background: var(--accent); padding: 14px 40px; border-radius: 14px; font-weight: bold; font-size: 1.1rem; box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35); }
+  .btn.alt  { background: var(--panel2); }
+  .btn.gold { background: var(--gold); color: #1a1400; }
+  .btn.small { padding: 10px 18px; font-size: 0.95rem; }
+  .btn:active { transform: translateY(3px); box-shadow: none; }
+  .btn:disabled { opacity: 0.5; cursor: default; transform: none; }
+  .btn:focus-visible, .lang:focus-visible, .tab:focus-visible, .dpad button:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+
+  /* Choix de la langue */
+  .langs { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 14px; }
+  .langlabel { color: var(--mute); font-size: 0.9rem; }
+  .lang { padding: 10px 16px; border-radius: 999px; background: var(--panel); color: var(--mute); font-weight: bold; }
+  .lang.on { background: var(--accent); color: #fff; }
+
+  /* ====== 3. BOUTIQUE ====== */
+  .tabs { display: flex; gap: 8px; }
+  .tab { padding: 10px 20px; border-radius: 999px; background: var(--panel); color: var(--mute); font-weight: bold; }
+  .tab.on { background: var(--accent); color: #fff; }
+  .items { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; width: min(100%, 640px); }
+  .card { background: var(--panel); border-radius: 16px; padding: 14px; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; }
+  .card.eq { outline: 2px solid var(--ok); }
+  .preview { font-size: 2.2rem; height: 52px; display: flex; align-items: center; gap: 8px; }
+  .swatch { width: 52px; height: 52px; border-radius: 12px; border: 2px solid var(--panel2); }
+  .state { font-size: 0.8rem; color: var(--mute); }
+
+  /* ====== 4. ZONE DE JEU ====== */
+  .ghead { width: var(--side); display: flex; justify-content: space-between; align-items: center; }
+  .score { font-size: 1.2rem; }
+  .stage { position: relative; width: var(--side); }
+  canvas { display: block; width: 100%; aspect-ratio: 1; border-radius: 14px; touch-action: none; }
+  .overlay {
+    position: absolute; inset: 0; border-radius: 14px; background: rgba(8, 9, 20, 0.78);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 10px; padding: 16px; text-align: center;
+  }
+  .overlay h2 { margin: 0; font-size: 1.9rem; }
+  .overlay p { margin: 0; color: var(--mute); white-space: pre-line; line-height: 1.4; }
+
+  /* Boutons tactiles : grands et espacés */
+  .dpad { display: grid; grid-template-columns: repeat(3, 62px); grid-template-rows: repeat(3, 62px); gap: 10px; }
+  .dpad button { background: var(--panel2); border-radius: 16px; font-size: 1.5rem; box-shadow: 0 4px 0 #14162d; touch-action: manipulation; }
+  .dpad button:active { transform: translateY(4px); box-shadow: none; }
+  .up { grid-column: 2; grid-row: 1; }
+  .left { grid-column: 1; grid-row: 2; }
+  .right { grid-column: 3; grid-row: 2; }
+  .down { grid-column: 2; grid-row: 3; }
+
+  /* ====== 5. FENÊTRE DE PUB (noire, au premier plan) ====== */
+  .modal {
+    position: fixed; inset: 0; z-index: 50; background: #000;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 16px; padding: 20px; text-align: center;
+  }
+  .adtag { margin: 0; color: var(--mute); }
+  .adcount { margin: 0; font-size: 4.5rem; font-weight: bold; color: var(--gold); }
+  .bar { width: min(80vw, 360px); height: 12px; background: #222; border-radius: 99px; overflow: hidden; }
+  #adBar { height: 100%; width: 0; background: var(--gold); }
+
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 60;
+    background: var(--panel2); padding: 10px 18px; border-radius: 12px;
+    opacity: 0; transition: opacity 0.2s; pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+
+  /* ====== 6. ÉCRANS BAS (téléphone en paysage) ====== */
+  @media (max-height: 700px) {
+    .overlay { gap: 6px; padding: 8px; }
+    .overlay h2 { font-size: 1.5rem; }
+    .overlay p { font-size: 0.85rem; }
+    .overlay .btn { padding: 8px 18px; font-size: 0.95rem; }
+  }
+  @media (orientation: landscape) and (max-height: 560px) {
+    :root { --side: min(calc(100dvh - 96px), 92vw); }
+    .topbar { padding-top: 6px; padding-bottom: 6px; }
+    /* grille à gauche, score et boutons à droite */
+    #game.active {
+      display: grid; grid-template-columns: auto minmax(170px, 240px);
+      grid-template-areas: "stage head" "stage pad";
+      justify-content: center; align-content: center;
+      column-gap: 20px; row-gap: 14px; padding: 8px 16px;
+    }
+    #game .stage { grid-area: stage; }
+    #game .ghead { grid-area: head; width: 100%; align-self: end; }
+    #game .dpad {
+      grid-area: pad; align-self: start; justify-self: center;
+      grid-template-columns: repeat(3, 54px); grid-template-rows: repeat(3, 54px); gap: 8px;
+    }
+  }
+</style>
+</head>
+
+<body>
+
+  <!-- ====== 6. STRUCTURE DE LA PAGE ====== -->
+  <header class="topbar">
+    <span class="brand">🐾 HUNGRY PETS</span>
+    <span class="coins" id="coins">🪙 100</span>
+  </header>
+
+  <!-- Menu principal -->
+  <section class="screen active" id="menu">
+    <h1 class="title">HUNGRY PETS</h1>
+    <p class="sub" data-i18n="tagline"></p>
+    <button class="btn" id="btnPlay" data-i18n="play"></button>
+    <button class="btn alt" id="btnShop" data-i18n="shop"></button>
+    <div class="langs">
+      <span class="langlabel" data-i18n="language"></span>
+      <div class="row">
+        <button class="lang" data-lang="fr">Français</button>
+        <button class="lang" data-lang="en">English</button>
+        <button class="lang" data-lang="es">Español</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Boutique -->
+  <section class="screen" id="shop">
+    <div class="row">
+      <button class="btn alt small" id="btnShopBack" data-i18n="back"></button>
+      <button class="btn gold small" id="btnVideo" data-i18n="video"></button>
+    </div>
+    <div class="tabs">
+      <button class="tab on" data-tab="animals" data-i18n="tabAnimals"></button>
+      <button class="tab" data-tab="decors" data-i18n="tabDecors"></button>
+    </div>
+    <div class="items" id="items"></div>
+  </section>
+
+  <!-- Jeu -->
+  <section class="screen" id="game">
+    <div class="ghead">
+      <button class="btn alt small" id="btnQuit" data-i18n="quit"></button>
+      <span class="score"><span data-i18n="score"></span> <b id="score">0</b></span>
+    </div>
+    <div class="stage">
+      <canvas id="cv" width="420" height="420"></canvas>
+      <div class="overlay hidden" id="overlay">
+        <h2 id="ovTitle"></h2>
+        <p id="ovText"></p>
+        <button class="btn" id="ovMain"></button>
+        <button class="btn gold small" id="ovSecond" data-i18n="second"></button>
+        <button class="btn alt small" id="ovMenu" data-i18n="menu"></button>
+      </div>
+    </div>
+    <div class="dpad">
+      <button class="up"    data-dir="0,-1" aria-label="Haut">▲</button>
+      <button class="left"  data-dir="-1,0" aria-label="Gauche">◀</button>
+      <button class="right" data-dir="1,0"  aria-label="Droite">▶</button>
+      <button class="down"  data-dir="0,1"  aria-label="Bas">▼</button>
+    </div>
+  </section>
+
+  <!-- Fenêtre de pub simulée -->
+  <div class="modal hidden" id="adModal">
+    <p class="adtag" data-i18n="adTag"></p>
+    <p class="adcount" id="adCount">10</p>
+    <div class="bar"><div id="adBar"></div></div>
+    <p class="adtag" id="adReward"></p>
+    <button class="btn alt small" id="adCancel" data-i18n="adCancel"></button>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+
+<script>
+  // ====== 7. LES DONNÉES : animaux et décors de la boutique ======
+  // Les textes sont des listes [français, anglais, espagnol]
+  const ANIMALS = [
+    { id: 'snake',  name: ['Serpent Vert', 'Green Snake', 'Serpiente Verde'],     head: '🟢', food: '🍎', foodName: ['Pommes', 'Apples', 'Manzanas'],   body: '#3ddc84', price: 0 },
+    { id: 'dog',    name: ['Petit Chien', 'Little Dog', 'Perrito'],               head: '🐶', food: '🦴', foodName: ['Os', 'Bones', 'Huesos'],          body: '#c98a4b', price: 30 },
+    { id: 'cat',    name: ['Chat Mignon', 'Cute Cat', 'Gatito Lindo'],            head: '🐱', food: '🐟', foodName: ['Poissons', 'Fish', 'Pescados'],   body: '#f0a35e', price: 50 },
+    { id: 'panda',  name: ['Panda Zen', 'Zen Panda', 'Panda Zen'],                head: '🐼', food: '🎋', foodName: ['Bambou', 'Bamboo', 'Bambú'],      body: '#e8e8f0', price: 100 },
+    { id: 'dragon', name: ['Dragon de Feu', 'Fire Dragon', 'Dragón de Fuego'],    head: '🐲', food: '🔥', foodName: ['Flammes', 'Flames', 'Llamas'],    body: '#ff6a2b', price: 200 }
+  ];
+  const DECORS = [
+    { id: 'classic', name: ['Classique', 'Classic', 'Clásico'],                   color: '#151518', price: 0 },
+    { id: 'forest',  name: ['Forêt', 'Forest', 'Bosque'],                         color: '#132a13', price: 25 },
+    { id: 'cyber',   name: ['Cyber Espace', 'Cyber Space', 'Ciberespacio'],      color: '#0a1128', price: 40 },
+    { id: 'magma',   name: ['Enfer Magma', 'Magma Hell', 'Infierno de Magma'],    color: '#2b0f0f', price: 80 }
+  ];
+
+  const $ = id => document.getElementById(id);   // petit raccourci pour trouver un élément
+
+  // ====== 8. SAUVEGARDE (pièces, achats, choix) ======
+  // Sommes-nous dans YouTube Playables ? (en local, le SDK est absent ou inactif)
+  const inPlayables = typeof ytgame !== 'undefined' && ytgame.IN_PLAYABLES_ENV === true;
+
+  const SAVE_KEY = 'snakeZooSave';                // clé du localStorage (mode local seulement)
+  let save = { coins: 100, owned: ['snake', 'classic'], animal: 'snake', decor: 'classic', lang: 'fr' };
+  let saveReady = false;                          // vrai quand la progression est chargée
+  let cloudTimer = null;
+
+  // Charge la progression : cloud YouTube dans Playables, sinon localStorage
+  async function loadProgress() {
+    let raw = null;
+    try {
+      raw = inPlayables ? await ytgame.game.loadData() : localStorage.getItem(SAVE_KEY);
+    } catch (e) { /* pas de sauvegarde : on repart de zéro */ }
+    let found = false;
+    try {
+      const data = JSON.parse(raw);
+      if (data && typeof data.coins === 'number') { Object.assign(save, data); found = true; }
+    } catch (e) { /* données vides ou illisibles */ }
+    if (!found) save.lang = detectLanguage();     // 1er lancement : langue de YouTube ou du navigateur
+    saveReady = true;
+  }
+
+  function detectLanguage() {
+    let code = '';
+    try { code = (inPlayables ? ytgame.system.getLanguage() : navigator.language) || ''; } catch (e) { /* ignoré */ }
+    code = code.slice(0, 2).toLowerCase();
+    return ['fr', 'en', 'es'].includes(code) ? code : 'en';
+  }
+
+  // Sauvegarde : cloud YouTube (regroupé sur 0,8 s) ou localStorage en local
+  function persist() {
+    if (!saveReady) return;                       // jamais avant la fin du chargement
+    if (inPlayables) {
+      clearTimeout(cloudTimer);
+      cloudTimer = setTimeout(flushCloud, 800);
+    } else {
+      try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) { /* tant pis */ }
+    }
+  }
+  function flushCloud() {                         // envoie tout de suite à YouTube
+    clearTimeout(cloudTimer);
+    cloudTimer = null;
+    if (!inPlayables || !saveReady) return;
+    try {
+      const p = ytgame.game.saveData(JSON.stringify(save));
+      if (p && p.catch) p.catch(function () { /* tant pis */ });
+    } catch (e) { /* tant pis */ }
+  }
+
+  const currentAnimal = () => ANIMALS.find(a => a.id === save.animal) || ANIMALS[0];
+  const currentDecor  = () => DECORS.find(d => d.id === save.decor) || DECORS[0];
+
+  // ====== 8b. LANGUES (français, anglais, espagnol) ======
+  const LANGS = ['fr', 'en', 'es'];
+  const TEXT = {
+    tagline:        ['Mange, grandis et débloque de nouveaux amis !', 'Eat, grow and unlock new friends!', '¡Come, crece y desbloquea nuevos amigos!'],
+    play:           ['JOUER', 'PLAY', 'JUGAR'],
+    shop:           ['BOUTIQUE', 'SHOP', 'TIENDA'],
+    language:       ['Langue', 'Language', 'Idioma'],
+    back:           ['← Retour', '← Back', '← Volver'],
+    quit:           ['← Quitter', '← Quit', '← Salir'],
+    video:          ['Regarder une vidéo (+50 pièces)', 'Watch a video (+50 coins)', 'Ver un vídeo (+50 monedas)'],
+    tabAnimals:     ['ANIMAUX', 'ANIMALS', 'ANIMALES'],
+    tabDecors:      ['DÉCORS', 'BACKGROUNDS', 'FONDOS'],
+    score:          ['Score :', 'Score:', 'Puntos:'],
+    second:         ['Seconde Chance (Regarder une pub)', 'Second Chance (Watch an ad)', 'Segunda oportunidad (Ver un anuncio)'],
+    menu:           ['Menu', 'Menu', 'Menú'],
+    adTag:          ['Publicité (simulation)', 'Ad (simulation)', 'Anuncio (simulación)'],
+    adCancel:       ['Annuler (sans récompense)', 'Cancel (no reward)', 'Cancelar (sin recompensa)'],
+    adRewardCoins:  ['Récompense : +50 pièces', 'Reward: +50 coins', 'Recompensa: +50 monedas'],
+    adRewardResume: ['La partie reprend après la pub', 'The game resumes after the ad', 'La partida continúa tras el anuncio'],
+    coinsToast:     ['+50 pièces !', '+50 coins!', '¡+50 monedas!'],
+    noCoins:        ['Pas assez de pièces !', 'Not enough coins!', '¡No tienes suficientes monedas!'],
+    unlockedToast:  ['débloqué !', 'unlocked!', 'desbloqueado'],
+    equipped:       ['Équipé', 'Equipped', 'Equipado'],
+    unlocked:       ['Débloqué', 'Unlocked', 'Desbloqueado'],
+    locked:         ['Verrouillé', 'Locked', 'Bloqueado'],
+    equip:          ['Équiper', 'Equip', 'Equipar'],
+    eats:           ['Mange :', 'Eats:', 'Come:'],
+    eatGoal:        ['Mange :', 'Eat:', 'Come:'],
+    pressDir:       ['Appuie sur une direction pour partir.', 'Press a direction to start.', 'Pulsa una dirección para empezar.'],
+    ready:          ['Prêt ?', 'Ready?', '¿Listo?'],
+    replay:         ['REJOUER', 'PLAY AGAIN', 'JUGAR DE NUEVO'],
+    ouch:           ['Aïe !', 'Ouch!', '¡Ay!'],
+    wall:           ['Tu as heurté le mur.', 'You hit the wall.', 'Chocaste con la pared.'],
+    tail:           ['Tu t’es mordu la queue.', 'You bit your own tail.', 'Te mordiste la cola.'],
+    bravo:          ['Bravo !', 'Well done!', '¡Bien hecho!'],
+    full:           ['La grille est pleine.', 'The grid is full.', 'La cuadrícula está llena.'],
+    paused:         ['PAUSE', 'PAUSED', 'PAUSA'],
+    pausedText:     ['Le jeu est en pause.', 'The game is paused.', 'El juego está en pausa.'],
+    resume:         ['REPRENDRE', 'RESUME', 'REANUDAR'],
+    adFail:         ['Pub indisponible ou non terminée : pas de récompense.', 'Ad unavailable or not finished: no reward.', 'Anuncio no disponible o sin terminar: sin recompensa.']
+  };
+  const langIndex = () => Math.max(0, LANGS.indexOf(save.lang));
+  const t = key => TEXT[key][langIndex()];       // t('play') donne « JOUER », « PLAY » ou « JUGAR »
+  const pick = list => list[langIndex()];        // choisit le bon texte dans une liste [fr, en, es]
+
+  function applyLanguage() {
+    if (!LANGS.includes(save.lang)) save.lang = 'fr';
+    document.documentElement.lang = save.lang;
+    document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+    document.querySelectorAll('.lang').forEach(b => b.classList.toggle('on', b.dataset.lang === save.lang));
+  }
+
+  function updateCoins() { $('coins').textContent = '🪙 ' + save.coins; }
+
+  let toastTimer;
+  function toast(msg) {
+    const t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
+  }
+
+  // ====== 9. NAVIGATION ENTRE LES ÉCRANS ======
+  function go(name) {
+    stopGame();                                   // on arrête toujours le jeu en arrière-plan
+    document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === name));
+    if (name === 'shop') renderShop();
+    if (name === 'game') newRound();
+  }
+  $('btnPlay').onclick = () => go('game');
+  $('btnShop').onclick = () => go('shop');
+  $('btnShopBack').onclick = () => go('menu');
+  $('btnQuit').onclick = () => go('menu');
+  $('ovMenu').onclick = () => go('menu');
+
+  document.querySelectorAll('.lang').forEach(function (b) {
+    b.onclick = function () { save.lang = b.dataset.lang; persist(); applyLanguage(); };
+  });
+
+  // ====== 10. PUBLICITÉS RÉCOMPENSÉES ======
+  // Dans YouTube : vraie pub (ytgame.ads). En local : simulation de 10 secondes.
+  let adTimer = null;
+
+  let adBusy = false;
+
+  // rewardId : identifiant unique de la récompense (demandé par YouTube, sans donnée personnelle)
+  function playAd(rewardId, rewardText, onDone) {
+    if (!inPlayables) return simulateAd(rewardText, onDone);   // en local : simulation
+    if (adBusy) return;
+    adBusy = true;
+    Promise.resolve()
+      .then(function () { return ytgame.ads.requestRewardedAd(rewardId); })
+      .then(function (earned) { if (earned) onDone(); else toast(t('adFail')); })
+      .catch(function () { toast(t('adFail')); })
+      .then(function () { adBusy = false; });
+  }
+
+  function simulateAd(rewardText, onDone) {
+    stopAd();
+    const total = 10000;                          // 10 secondes
+    const t0 = Date.now();
+    $('adReward').textContent = rewardText;
+    $('adCount').textContent = '10';
+    $('adBar').style.width = '0%';
+    $('adModal').classList.remove('hidden');
+    adTimer = setInterval(function () {
+      const left = Math.max(0, total - (Date.now() - t0));
+      $('adCount').textContent = Math.ceil(left / 1000);
+      $('adBar').style.width = (100 - left / total * 100) + '%';
+      if (left <= 0) { stopAd(); onDone(); }      // fini : on ferme et on donne la récompense
+    }, 100);
+  }
+  function stopAd() {
+    clearInterval(adTimer);
+    adTimer = null;
+    $('adModal').classList.add('hidden');
+  }
+  $('adCancel').onclick = stopAd;                 // annuler = fermer sans récompense
+
+  $('btnVideo').onclick = () => playAd('shop-coins-50', t('adRewardCoins'), function () {
+    save.coins += 50;
+    persist(); updateCoins();
+    toast(t('coinsToast'));
+  });
+
+  // ====== 11. BOUTIQUE ======
+  let tab = 'animals';
+
+  document.querySelectorAll('.tab').forEach(function (b) {
+    b.onclick = () => { tab = b.dataset.tab; renderShop(); };
+  });
+
+  function renderShop() {
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.tab === tab));
+    const list = tab === 'animals' ? ANIMALS : DECORS;
+    const key = tab === 'animals' ? 'animal' : 'decor';
+    $('items').innerHTML = '';
+
+    list.forEach(function (item) {
+      const owned = save.owned.includes(item.id);
+      const equipped = save[key] === item.id;
+      const card = document.createElement('div');
+      card.className = 'card' + (equipped ? ' eq' : '');
+
+      const preview = tab === 'animals'
+        ? '<div class="preview">' + item.head + item.food + '</div>'
+        : '<div class="swatch" style="background:' + item.color + '"></div>';
+      const state = equipped ? '✅ ' + t('equipped') : owned ? t('unlocked') : '🔒 ' + t('locked');
+      const extra = tab === 'animals' ? '<span class="state">' + t('eats') + ' ' + pick(item.foodName) + '</span>' : '';
+      card.innerHTML = preview + '<b>' + pick(item.name) + '</b><span class="state">' + state + '</span>' + extra;
+
+      const btn = document.createElement('button');
+      btn.className = 'btn small' + (owned ? '' : ' gold');
+      btn.textContent = equipped ? t('equipped') : owned ? t('equip') : '🪙 ' + item.price;
+      btn.disabled = equipped;
+      btn.onclick = () => choose(item, key, owned);
+      card.appendChild(btn);
+      $('items').appendChild(card);
+    });
+  }
+
+  function choose(item, key, owned) {
+    if (!owned) {
+      if (save.coins < item.price) { toast(t('noCoins')); return; }
+      save.coins -= item.price;
+      save.owned.push(item.id);
+      updateCoins();
+      toast(pick(item.name) + ' ' + t('unlockedToast'));
+    }
+    save[key] = item.id;                          // on équipe directement
+    persist();
+    renderShop();
+  }
+
+  // ====== 12. LE JEU : état ======
+  const G = 14;                                   // grille de 14 x 14 cases
+  const cv = $('cv');
+  const ctx = cv.getContext('2d');
+  const T = cv.width / G;                         // taille d’une case
+
+  let snake, dir, queue, food, score;
+  let secondChanceUsed = false;
+  let state = 'menu';                             // 'menu', 'ready', 'playing' ou 'over'
+  let timer = null;
+
+  function newRound() {
+    score = 0;
+    secondChanceUsed = false;
+    $('score').textContent = 0;
+    respawn();
+    state = 'ready';
+    const a = currentAnimal();
+    showOverlay(t('ready'), t('eatGoal') + ' ' + pick(a.foodName) + ' ' + a.food + '\n' + t('pressDir'), t('play'), false, false);
+    draw();
+  }
+
+  // Place le serpent au centre de la grille (aussi utilisé pour la seconde chance)
+  function respawn() {
+    const m = G / 2;
+    snake = [{ x: m, y: m }, { x: m - 1, y: m }, { x: m - 2, y: m }];
+    dir = { x: 1, y: 0 };
+    queue = [];
+    placeFood();
+  }
+
+  function placeFood() {
+    const free = [];
+    for (let x = 0; x < G; x++) {
+      for (let y = 0; y < G; y++) {
+        if (!snake.some(c => c.x === x && c.y === y)) free.push({ x, y });
+      }
+    }
+    food = free.length ? free[Math.floor(Math.random() * free.length)] : null;
+  }
+
+  // ====== 13. LE JEU : boucle ======
+  function schedule(ms) { clearTimeout(timer); timer = setTimeout(step, ms); }
+
+  function stopGame() {                           // arrêt propre : plus aucun minuteur actif
+    clearTimeout(timer);
+    timer = null;
+    state = 'menu';
+  }
+
+  // ====== 13b. PAUSE, SON ET SDK YOUTUBE ======
+  function safe(fn) { try { fn(); } catch (e) { /* le jeu continue même si le SDK échoue */ } }
+
+  function pauseGame() {
+    if (state !== 'playing') return;
+    state = 'paused';
+    clearTimeout(timer);                          // l’animal ne bouge plus
+    showOverlay(t('paused'), t('pausedText'), t('resume'), false, true);
+  }
+
+  function resumeGame() {
+    if (state !== 'paused') return;
+    state = 'playing';
+    $('overlay').classList.add('hidden');
+    schedule(600);                                // petit délai pour se préparer
+  }
+
+  // Sons : petits bips générés par le navigateur (aucun fichier externe)
+  let audioEnabled = true;
+  let audioCtx = null;
+
+  function setAudio(on) {                         // appelé par YouTube quand le son est coupé/activé
+    audioEnabled = !!on;
+    if (!audioCtx) return;
+    if (audioEnabled) audioCtx.resume().catch(function () {});
+    else audioCtx.suspend().catch(function () {});
+  }
+
+  function beep(freq, ms) {
+    if (!audioEnabled) return;
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume().catch(function () {});
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'square';
+      osc.frequency.value = freq;
+      gain.gain.value = 0.05;
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + ms / 1000);
+    } catch (e) { /* pas de son possible : tant pis */ }
+  }
+
+  function onSystemPause() {                      // YouTube met le jeu en pause
+    pauseGame();
+    flushCloud();
+    if (audioCtx) audioCtx.suspend().catch(function () {});
+  }
+  function onSystemResume() {                     // YouTube reprend : le joueur appuie sur « Reprendre »
+    if (audioEnabled && audioCtx) audioCtx.resume().catch(function () {});
+  }
+
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) { pauseGame(); flushCloud(); }   // onglet caché : pause (utile aussi en local)
+  });
+
+  function begin() {
+    state = 'playing';
+    $('overlay').classList.add('hidden');
+    schedule(speed());
+  }
+
+  function speed() { return Math.max(70, 150 - score * 3); }   // le jeu accélère
+
+  function step() {
+    if (state !== 'playing') return;
+    if (queue.length) dir = queue.shift();
+
+    const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
+    if (head.x < 0 || head.x >= G || head.y < 0 || head.y >= G) return gameOver(t('ouch'), t('wall'));
+
+    const eats = food && head.x === food.x && head.y === food.y;
+    const body = eats ? snake : snake.slice(0, -1);
+    if (body.some(c => c.x === head.x && c.y === head.y)) return gameOver(t('ouch'), t('tail'));
+
+    snake.unshift(head);
+    if (eats) {
+      score++;
+      beep(660, 70);
+      save.coins++;                               // +1 pièce par aliment mangé
+      persist(); updateCoins();
+      $('score').textContent = score;
+      placeFood();
+      if (!food) return gameOver(t('bravo'), t('full'));
+    } else {
+      snake.pop();
+    }
+    draw();
+    schedule(speed());
+  }
+
+  function gameOver(title, text) {
+    state = 'over';
+    beep(180, 300);
+    clearTimeout(timer);
+    draw();
+    showOverlay(title, text + '\n' + t('score') + ' ' + score, t('replay'), !secondChanceUsed, true);
+  }
+
+  function showOverlay(title, text, mainLabel, withSecond, withMenu) {
+    $('ovTitle').textContent = title;
+    $('ovText').textContent = text;
+    $('ovMain').textContent = mainLabel;
+    $('ovSecond').classList.toggle('hidden', !withSecond);
+    $('ovMenu').classList.toggle('hidden', !withMenu);
+    $('overlay').classList.remove('hidden');
+  }
+
+  $('ovMain').onclick = function () {
+    if (state === 'paused') return resumeGame();
+    if (state === 'over') newRound();
+    begin();
+  };
+
+  // Seconde chance : pub de 10 s, puis on repart au centre, score conservé (1 fois par partie)
+  $('ovSecond').onclick = () => playAd('second-chance-revive', t('adRewardResume'), function () {
+    secondChanceUsed = true;
+    respawn();
+    $('overlay').classList.add('hidden');
+    state = 'playing';
+    draw();
+    schedule(700);
+  });
+
+  // ====== 14. DIRECTIONS ======
+  function turn(dx, dy) {
+    if (state === 'ready') begin();               // la 1re direction lance la partie
+    if (state !== 'playing') return;
+    const last = queue.length ? queue[queue.length - 1] : dir;
+    if (dx === -last.x && dy === -last.y) return; // pas de demi-tour
+    if (dx === last.x && dy === last.y) return;
+    if (queue.length < 2) queue.push({ x: dx, y: dy });
+  }
+
+  // ====== 15. DESSIN ======
+  function draw() {
+    const a = currentAnimal();
+    ctx.fillStyle = currentDecor().color;
+    ctx.fillRect(0, 0, cv.width, cv.height);
+    ctx.fillStyle = 'rgba(255,255,255,0.035)';    // léger damier
+    for (let x = 0; x < G; x++) for (let y = 0; y < G; y++) if ((x + y) % 2) ctx.fillRect(x * T, y * T, T, T);
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const emojiFont = 'px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+
+    if (food) {                                   // nourriture : grande, avec un halo qui pulse
+      const fx = (food.x + 0.5) * T, fy = (food.y + 0.5) * T;
+      const pulse = 1 + 0.12 * Math.sin(Date.now() / 150);
+      ctx.beginPath();
+      ctx.arc(fx, fy, T * 0.62 * pulse, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,255,255,0.28)';
+      ctx.fill();
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = '#ffc94d';
+      ctx.stroke();
+      ctx.fillStyle = '#fff';                     // couleur opaque : sinon l’émoji devient presque transparent
+      ctx.font = T + emojiFont;
+      ctx.fillText(a.food, fx, fy + T * 0.05);
+    }
+
+    ctx.fillStyle = a.body;                       // corps : carrés arrondis de la couleur de l’animal
+    for (let i = snake.length - 1; i > 0; i--) {
+      ctx.beginPath();
+      ctx.roundRect(snake[i].x * T + 2, snake[i].y * T + 2, T - 4, T - 4, 7);
+      ctx.fill();
+    }
+    ctx.fillStyle = '#fff';
+    ctx.font = (T * 0.92) + emojiFont;
+    ctx.fillText(a.head, (snake[0].x + 0.5) * T, (snake[0].y + 0.55) * T);   // tête : l’émoji
+  }
+
+  // ====== 16. COMMANDES : clavier, boutons tactiles, glissement ======
+  const KEYS = {
+    ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0],
+    w: [0, -1], z: [0, -1], s: [0, 1], a: [-1, 0], q: [-1, 0], d: [1, 0]
+  };
+  document.addEventListener('keydown', function (e) {
+    if (!$('game').classList.contains('active') || e.ctrlKey || e.metaKey || e.altKey) return;
+    if ($('adModal').classList.contains('hidden') === false) return;
+    const dirKey = KEYS[e.key.length === 1 ? e.key.toLowerCase() : e.key];
+    if (!dirKey) return;
+    e.preventDefault();                           // empêche la page de défiler
+    turn(dirKey[0], dirKey[1]);
+  });
+
+  document.querySelectorAll('[data-dir]').forEach(function (b) {
+    b.addEventListener('pointerdown', function (e) {
+      e.preventDefault();
+      const [dx, dy] = b.dataset.dir.split(',').map(Number);
+      turn(dx, dy);
+    });
+  });
+
+  let sx = 0, sy = 0;
+  cv.addEventListener('touchstart', e => { sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: true });
+  cv.addEventListener('touchend', function (e) {
+    const dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < 24) return;
+    if (Math.abs(dx) > Math.abs(dy)) turn(dx > 0 ? 1 : -1, 0); else turn(0, dy > 0 ? 1 : -1);
+  }, { passive: true });
+
+  // ====== 17. C’EST PARTI ======
+  async function boot() {
+    // Pas cliquable tant que la progression n’est pas chargée
+    const lockable = document.querySelectorAll('#btnPlay, #btnShop, .lang');
+    lockable.forEach(b => { b.disabled = true; });
+
+    if (inPlayables) {                            // abonnements au SDK YouTube
+      safe(() => setAudio(ytgame.system.isAudioEnabled()));
+      safe(() => ytgame.system.onAudioEnabledChange(setAudio));
+      safe(() => ytgame.system.onPause(onSystemPause));
+      safe(() => ytgame.system.onResume(onSystemResume));
+    }
+
+    applyLanguage();
+    updateCoins();
+    await new Promise(resolve => requestAnimationFrame(resolve));   // on attend que le 1er visuel soit dessiné
+    if (inPlayables) safe(() => ytgame.game.firstFrameReady());
+
+    await loadProgress();
+    applyLanguage();
+    updateCoins();
+    lockable.forEach(b => { b.disabled = false; });
+    if (inPlayables) safe(() => ytgame.game.gameReady());           // menu chargé et cliquable
+  }
+  boot();
+</script>
+</body>
+</html>
