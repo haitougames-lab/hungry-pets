@@ -521,6 +521,17 @@
   // ====== 13b. PAUSE, SON ET SDK YOUTUBE ======
   function safe(fn) { try { fn(); } catch (e) { /* le jeu continue même si le SDK échoue */ } }
 
+  // Envoie le score à YouTube (uniquement dans Playables), toujours comme nombre ENTIER
+  function sendScore(value) {
+    if (!inPlayables) return;
+    const intScore = Math.trunc(Number(value));
+    if (!Number.isSafeInteger(intScore) || intScore < 0) return;
+    safe(function () {
+      const p = ytgame.engagement.sendScore({ value: intScore });
+      if (p && p.catch) p.catch(function () { /* tant pis */ });
+    });
+  }
+
   function pauseGame() {
     if (state !== 'playing') return;
     state = 'paused';
@@ -599,6 +610,7 @@
     if (eats) {
       score++;
       beep(660, 70);
+      sendScore(score);                           // +1 point : on prévient YouTube
       save.coins++;                               // +1 pièce par aliment mangé
       persist(); updateCoins();
       $('score').textContent = score;
@@ -614,6 +626,7 @@
   function gameOver(title, text) {
     state = 'over';
     beep(180, 300);
+    sendScore(score);                             // score final
     clearTimeout(timer);
     draw();
     showOverlay(title, text + '\n' + t('score') + ' ' + score, t('replay'), !secondChanceUsed, true);
@@ -724,10 +737,6 @@
 
   // ====== 17. C’EST PARTI ======
   async function boot() {
-    // Pas cliquable tant que la progression n’est pas chargée
-    const lockable = document.querySelectorAll('#btnPlay, #btnShop, .lang');
-    lockable.forEach(b => { b.disabled = true; });
-
     if (inPlayables) {                            // abonnements au SDK YouTube
       safe(() => setAudio(ytgame.system.isAudioEnabled()));
       safe(() => ytgame.system.onAudioEnabledChange(setAudio));
@@ -735,16 +744,26 @@
       safe(() => ytgame.system.onResume(onSystemResume));
     }
 
+    // 1. Le menu s’affiche (ses boutons sont déjà cliquables)
     applyLanguage();
     updateCoins();
-    await new Promise(resolve => requestAnimationFrame(resolve));   // on attend que le 1er visuel soit dessiné
-    if (inPlayables) safe(() => ytgame.game.firstFrameReady());
+    await Promise.race([                          // on attend le 1er dessin (au maximum 0,3 s)
+      new Promise(resolve => requestAnimationFrame(resolve)),
+      new Promise(resolve => setTimeout(resolve, 300))
+    ]);
 
-    await loadProgress();
+    // 2. On prévient YouTube, dans l’ordre : premier visuel, puis jeu prêt
+    if (inPlayables) {
+      safe(() => ytgame.game.firstFrameReady());
+      safe(() => ytgame.game.gameReady());
+    }
+
+    // 3. La progression se charge ensuite, sans bloquer gameReady
+    //    (aucune sauvegarde n’est envoyée tant qu’elle n’est pas chargée)
+    try { await loadProgress(); } catch (e) { saveReady = true; }
     applyLanguage();
     updateCoins();
-    lockable.forEach(b => { b.disabled = false; });
-    if (inPlayables) safe(() => ytgame.game.gameReady());           // menu chargé et cliquable
+    if ($('shop').classList.contains('active')) renderShop();
   }
   boot();
 </script>
