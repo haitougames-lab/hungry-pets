@@ -66,10 +66,20 @@
     background: var(--panel);
   }
   .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--txt);
     font-weight: bold;
     letter-spacing: 0.05em;
     font-size: clamp(0.92rem, 2.5vw, 1.15rem);
     white-space: nowrap;
+  }
+  .brand-logo {
+    width: 1.05em;
+    height: 1.05em;
+    flex-shrink: 0;
+    fill: currentColor;
   }
   .top-actions {
     display: flex;
@@ -364,7 +374,7 @@
 
   <!-- Barre supérieure permanente -->
   <header class="topbar">
-    <span class="brand">🐾 HUNGRY PETS</span>
+    <span class="brand"><svg class="brand-logo" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="5.5" cy="9.5" rx="2.1" ry="2.7" transform="rotate(-18 5.5 9.5)"/><ellipse cx="9.8" cy="6.2" rx="2" ry="2.7" transform="rotate(-6 9.8 6.2)"/><ellipse cx="14.6" cy="6.2" rx="2" ry="2.7" transform="rotate(6 14.6 6.2)"/><ellipse cx="18.7" cy="9.7" rx="2.1" ry="2.7" transform="rotate(18 18.7 9.7)"/><path d="M12 11c-3.4 0-6.2 2.8-6.2 5.6 0 2 1.5 3.4 3.4 3.4 1.1 0 1.9-.5 2.8-.5s1.7.5 2.8.5c1.9 0 3.4-1.4 3.4-3.4C18.2 13.8 15.4 11 12 11z"/></svg>HUNGRY PETS</span>
     <div class="top-actions">
       <button type="button" class="sound-btn" id="btnSound" aria-pressed="true"></button>
       <span class="coins" id="coins">🪙 100</span>
@@ -470,16 +480,17 @@
       let code = '';
       if (inPlayables) {
         try {
-          const ytLang = await Promise.race([
-            Promise.resolve(ytgame.system.getLanguage()).then(val => {
-              if (val) playablesHostActive = true;
-              return val || '';
-            }),
+          const ytLangPromise = Promise.resolve(ytgame.system.getLanguage()).then(val => {
+            if (val) playablesHostActive = true;
+            return val || '';
+          });
+          ytLangPromise.catch(function () {});
+          code = await Promise.race([
+            ytLangPromise,
             new Promise(resolve => setTimeout(() => resolve(''), 400))
           ]);
-          code = ytLang || navigator.language || '';
         } catch (e) {
-          code = navigator.language || '';
+          code = '';
         }
       } else {
         try {
