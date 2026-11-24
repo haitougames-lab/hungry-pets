@@ -2,13 +2,17 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- SDK YouTube Playables : doit être le PREMIER script de la page (inactif quand on joue en local) -->
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<!-- SDK YouTube Playables : doit être le PREMIER script de la page (inactif en local) -->
 <script src="https://www.youtube.com/game_api/v1"></script>
 <title>HUNGRY PETS</title>
+<meta name="description" content="HUNGRY PETS - Jeu d'arcade HTML5 immersif compatible YouTube Playables.">
+<meta property="og:title" content="HUNGRY PETS">
+<meta property="og:description" content="HUNGRY PETS - Jeu d'arcade HTML5 immersif compatible YouTube Playables.">
+<meta property="og:type" content="website">
 
 <style>
-  /* ====== 1. COULEURS ET TAILLES (modifie-les ici) ====== */
+  /* ====== 1. THÈME ET VARIABLES ====== */
   :root {
     --bg: #0e0f1c;
     --panel: #1a1c33;
@@ -18,130 +22,339 @@
     --accent: #7c5cff;
     --gold: #ffc94d;
     --ok: #3ddc84;
-    --side: max(220px, min(92vw, 440px, calc(100dvh - 340px)));  /* taille de la grille */
   }
 
-  /* ====== 2. BASE ====== */
+  /* ====== 2. BASE PLEIN ÉCRAN ADAPTATIF ====== */
   * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; }
-  body {
-    background: var(--bg); color: var(--txt);
-    font-family: "Trebuchet MS", "Segoe UI", Arial, sans-serif;
-    display: flex; flex-direction: column;
-    -webkit-user-select: none; user-select: none; touch-action: manipulation;
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
   }
-  button { font: inherit; color: inherit; border: none; cursor: pointer; }
+  body {
+    background: var(--bg);
+    color: var(--txt);
+    font-family: "Trebuchet MS", "Segoe UI", Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    overscroll-behavior: none;
+  }
+  button {
+    font: inherit;
+    color: inherit;
+    border: none;
+    cursor: pointer;
+    background: none;
+  }
   .hidden { display: none !important; }
 
   /* Barre supérieure permanente */
   .topbar {
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 10px 14px; padding-top: max(10px, env(safe-area-inset-top));
+    flex-shrink: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    padding: max(8px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) 8px max(14px, env(safe-area-inset-left));
     background: var(--panel);
   }
-  .brand { font-weight: bold; letter-spacing: 0.05em; }
-  .coins { background: var(--bg); color: var(--gold); padding: 6px 14px; border-radius: 999px; font-weight: bold; }
+  .brand {
+    font-weight: bold;
+    letter-spacing: 0.05em;
+    font-size: clamp(0.92rem, 2.5vw, 1.15rem);
+    white-space: nowrap;
+  }
+  .top-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .sound-btn {
+    background: var(--panel2);
+    color: var(--txt);
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-weight: bold;
+    font-size: 0.88rem;
+    white-space: nowrap;
+    transition: opacity 0.15s ease, transform 0.08s ease;
+  }
+  .sound-btn:active { transform: translateY(2px); }
+  .sound-btn.off { color: var(--mute); }
+  .sound-btn:focus-visible {
+    outline: 3px solid #fff;
+    outline-offset: 2px;
+  }
+  .coins {
+    background: var(--bg);
+    color: var(--gold);
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-weight: bold;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
 
   /* Écrans (un seul visible à la fois) */
   .screen {
-    flex: 1; min-height: 0; display: none; flex-direction: column; align-items: center;
-    gap: 14px; padding: 16px; overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    padding: 14px max(14px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
+    overflow: hidden;
   }
   .screen.active { display: flex; }
-  #menu > :first-child { margin-top: auto; }      /* centre le menu sans jamais le couper */
-  #menu > :last-child { margin-bottom: auto; }
-  .title { margin: 0; font-size: clamp(2.2rem, 9vw, 3.6rem); letter-spacing: 0.06em; text-align: center; }
-  .sub { margin: 0 0 12px; color: var(--mute); text-align: center; }
-  .row { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+
+  /* Menu principal */
+  #menu {
+    overflow-y: auto;
+    justify-content: center;
+  }
+  .title {
+    margin: 0;
+    font-size: clamp(2.1rem, 8vw, 3.6rem);
+    letter-spacing: 0.06em;
+    text-align: center;
+    line-height: 1.05;
+  }
+  .sub {
+    margin: 0 0 8px;
+    color: var(--mute);
+    text-align: center;
+    max-width: 420px;
+  }
+  .row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+  }
 
   /* Boutons */
-  .btn { background: var(--accent); padding: 14px 40px; border-radius: 14px; font-weight: bold; font-size: 1.1rem; box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35); }
+  .btn {
+    background: var(--accent);
+    padding: 14px 40px;
+    border-radius: 14px;
+    font-weight: bold;
+    font-size: 1.1rem;
+    box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35);
+    transition: transform 0.08s ease;
+  }
   .btn.alt  { background: var(--panel2); }
   .btn.gold { background: var(--gold); color: #1a1400; }
   .btn.small { padding: 10px 18px; font-size: 0.95rem; }
+  .btn.icon { padding: 8px 14px; font-size: 0.95rem; border-radius: 10px; }
   .btn:active { transform: translateY(3px); box-shadow: none; }
   .btn:disabled { opacity: 0.5; cursor: default; transform: none; }
-  .btn:focus-visible, .lang:focus-visible, .tab:focus-visible, .dpad button:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+  .btn:focus-visible, .lang:focus-visible, .tab:focus-visible {
+    outline: 3px solid #fff;
+    outline-offset: 2px;
+  }
 
   /* Choix de la langue */
-  .langs { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 14px; }
+  .langs {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+  }
   .langlabel { color: var(--mute); font-size: 0.9rem; }
-  .lang { padding: 10px 16px; border-radius: 999px; background: var(--panel); color: var(--mute); font-weight: bold; }
+  .lang {
+    padding: 10px 16px;
+    border-radius: 999px;
+    background: var(--panel);
+    color: var(--mute);
+    font-weight: bold;
+  }
   .lang.on { background: var(--accent); color: #fff; }
 
   /* ====== 3. BOUTIQUE ====== */
-  .tabs { display: flex; gap: 8px; }
-  .tab { padding: 10px 20px; border-radius: 999px; background: var(--panel); color: var(--mute); font-weight: bold; }
+  .tabs { display: flex; gap: 8px; flex-shrink: 0; }
+  .tab {
+    padding: 10px 20px;
+    border-radius: 999px;
+    background: var(--panel);
+    color: var(--mute);
+    font-weight: bold;
+  }
   .tab.on { background: var(--accent); color: #fff; }
-  .items { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; width: min(100%, 640px); }
-  .card { background: var(--panel); border-radius: 16px; padding: 14px; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; }
+  .items {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    align-content: start;
+    gap: 12px;
+    width: min(100%, 640px);
+    padding: 4px;
+  }
+  .card {
+    background: var(--panel);
+    border-radius: 16px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    text-align: center;
+  }
   .card.eq { outline: 2px solid var(--ok); }
   .preview { font-size: 2.2rem; height: 52px; display: flex; align-items: center; gap: 8px; }
   .swatch { width: 52px; height: 52px; border-radius: 12px; border: 2px solid var(--panel2); }
   .state { font-size: 0.8rem; color: var(--mute); }
 
-  /* ====== 4. ZONE DE JEU ====== */
-  .ghead { width: var(--side); display: flex; justify-content: space-between; align-items: center; }
-  .score { font-size: 1.2rem; }
-  .stage { position: relative; width: var(--side); }
-  canvas { display: block; width: 100%; aspect-ratio: 1; border-radius: 14px; touch-action: none; }
-  .overlay {
-    position: absolute; inset: 0; border-radius: 14px; background: rgba(8, 9, 20, 0.78);
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 10px; padding: 16px; text-align: center;
+  /* ====== 4. ZONE DE JEU PLEIN ÉCRAN IMMERSIVE ====== */
+  #game {
+    gap: 10px;
+    padding: 10px max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
   }
-  .overlay h2 { margin: 0; font-size: 1.9rem; }
-  .overlay p { margin: 0; color: var(--mute); white-space: pre-line; line-height: 1.4; }
+  .ghead {
+    flex-shrink: 0;
+    width: 100%;
+    max-width: 680px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+  }
+  .score {
+    font-size: clamp(1.05rem, 3vw, 1.3rem);
+    font-variant-numeric: tabular-nums;
+  }
+  .stage-wrap {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .stage {
+    position: relative;
+    width: 420px;
+    height: 420px;
+    border-radius: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.14);
+    overflow: hidden;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+    touch-action: none;
+  }
+  .btn.pause-hidden {
+    visibility: hidden;
+    pointer-events: none;
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    touch-action: none;
+  }
+  .overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(8, 9, 20, 0.82);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 16px;
+    text-align: center;
+  }
+  .overlay h2 { margin: 0; font-size: clamp(1.4rem, 4.5vw, 2rem); }
+  .overlay p {
+    margin: 0;
+    color: var(--mute);
+    white-space: pre-line;
+    line-height: 1.4;
+    font-size: clamp(0.85rem, 2.5vw, 1rem);
+    max-width: 320px;
+  }
+  .stage.compact .overlay { gap: 6px; padding: 10px; }
+  .stage.compact .overlay h2 { font-size: 1.35rem; }
+  .stage.compact .overlay p { font-size: 0.82rem; }
+  .stage.compact .overlay .btn { padding: 9px 18px; font-size: 0.9rem; }
 
-  /* Boutons tactiles : grands et espacés */
-  .dpad { display: grid; grid-template-columns: repeat(3, 62px); grid-template-rows: repeat(3, 62px); gap: 10px; }
-  .dpad button { background: var(--panel2); border-radius: 16px; font-size: 1.5rem; box-shadow: 0 4px 0 #14162d; touch-action: manipulation; }
-  .dpad button:active { transform: translateY(4px); box-shadow: none; }
-  .up { grid-column: 2; grid-row: 1; }
-  .left { grid-column: 1; grid-row: 2; }
-  .right { grid-column: 3; grid-row: 2; }
-  .down { grid-column: 2; grid-row: 3; }
-
-  /* ====== 5. FENÊTRE DE PUB (noire, au premier plan) ====== */
+  /* ====== 5. FENÊTRE DE PUB LOCALE (noire, au premier plan) ====== */
   .modal {
-    position: fixed; inset: 0; z-index: 50; background: #000;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 16px; padding: 20px; text-align: center;
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    background: #000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 20px;
+    text-align: center;
   }
   .adtag { margin: 0; color: var(--mute); }
-  .adcount { margin: 0; font-size: 4.5rem; font-weight: bold; color: var(--gold); }
+  .adcount { margin: 0; font-size: 4.5rem; font-weight: bold; color: var(--gold); font-variant-numeric: tabular-nums; }
   .bar { width: min(80vw, 360px); height: 12px; background: #222; border-radius: 99px; overflow: hidden; }
   #adBar { height: 100%; width: 0; background: var(--gold); }
 
   .toast {
-    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 60;
-    background: var(--panel2); padding: 10px 18px; border-radius: 12px;
-    opacity: 0; transition: opacity 0.2s; pointer-events: none;
+    position: fixed;
+    bottom: max(20px, env(safe-area-inset-bottom));
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 60;
+    background: var(--panel2);
+    padding: 10px 18px;
+    border-radius: 12px;
+    opacity: 0;
+    transition: opacity 0.2s;
+    pointer-events: none;
+    text-align: center;
+    max-width: 90vw;
   }
   .toast.show { opacity: 1; }
 
-  /* ====== 6. ÉCRANS BAS (téléphone en paysage) ====== */
-  @media (max-height: 700px) {
-    .overlay { gap: 6px; padding: 8px; }
-    .overlay h2 { font-size: 1.5rem; }
-    .overlay p { font-size: 0.85rem; }
-    .overlay .btn { padding: 8px 18px; font-size: 0.95rem; }
-  }
-  @media (orientation: landscape) and (max-height: 560px) {
-    :root { --side: min(calc(100dvh - 96px), 92vw); }
+  /* ====== 6. ADAPTATION PAYSAGE COMPACT ====== */
+  @media (max-height: 460px) {
     .topbar { padding-top: 6px; padding-bottom: 6px; }
-    /* grille à gauche, score et boutons à droite */
+    .screen { gap: 8px; padding-top: 8px; padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+    .btn { padding: 10px 28px; font-size: 1rem; }
+    .btn.small { padding: 8px 14px; font-size: 0.88rem; }
+    .langs { margin-top: 2px; gap: 4px; }
+    .lang { padding: 6px 12px; font-size: 0.88rem; }
+  }
+  @media (orientation: landscape) and (max-height: 520px) {
     #game.active {
-      display: grid; grid-template-columns: auto minmax(170px, 240px);
-      grid-template-areas: "stage head" "stage pad";
-      justify-content: center; align-content: center;
-      column-gap: 20px; row-gap: 14px; padding: 8px 16px;
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      padding: 8px max(14px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
     }
-    #game .stage { grid-area: stage; }
-    #game .ghead { grid-area: head; width: 100%; align-self: end; }
-    #game .dpad {
-      grid-area: pad; align-self: start; justify-self: center;
-      grid-template-columns: repeat(3, 54px); grid-template-rows: repeat(3, 54px); gap: 8px;
+    #game .ghead {
+      width: auto !important;
+      min-width: 112px;
+      flex-direction: column-reverse;
+      align-items: flex-start;
+      justify-content: center;
+      gap: 12px;
+    }
+    #game .stage-wrap {
+      flex: 0 1 auto;
+      width: auto;
+      height: 100%;
+      aspect-ratio: 1;
+      max-width: calc(100vw - 160px);
     }
   }
 </style>
@@ -149,10 +362,13 @@
 
 <body>
 
-  <!-- ====== 6. STRUCTURE DE LA PAGE ====== -->
+  <!-- Barre supérieure permanente -->
   <header class="topbar">
     <span class="brand">🐾 HUNGRY PETS</span>
-    <span class="coins" id="coins">🪙 100</span>
+    <div class="top-actions">
+      <button type="button" class="sound-btn" id="btnSound" aria-pressed="true"></button>
+      <span class="coins" id="coins">🪙 100</span>
+    </div>
   </header>
 
   <!-- Menu principal -->
@@ -186,29 +402,25 @@
 
   <!-- Jeu -->
   <section class="screen" id="game">
-    <div class="ghead">
-      <button class="btn alt small" id="btnQuit" data-i18n="quit"></button>
+    <div class="ghead" id="ghead">
+      <button class="btn alt icon" id="btnPause" data-i18n="pauseBtn" aria-label="Pause"></button>
       <span class="score"><span data-i18n="score"></span> <b id="score">0</b></span>
     </div>
-    <div class="stage">
-      <canvas id="cv" width="420" height="420"></canvas>
-      <div class="overlay hidden" id="overlay">
-        <h2 id="ovTitle"></h2>
-        <p id="ovText"></p>
-        <button class="btn" id="ovMain"></button>
-        <button class="btn gold small" id="ovSecond" data-i18n="second"></button>
-        <button class="btn alt small" id="ovMenu" data-i18n="menu"></button>
+    <div class="stage-wrap" id="stageWrap">
+      <div class="stage" id="stage">
+        <canvas id="cv"></canvas>
+        <div class="overlay hidden" id="overlay">
+          <h2 id="ovTitle"></h2>
+          <p id="ovText"></p>
+          <button class="btn" id="ovMain"></button>
+          <button class="btn gold small" id="ovSecond" data-i18n="second"></button>
+          <button class="btn alt small" id="ovMenu" data-i18n="menu"></button>
+        </div>
       </div>
-    </div>
-    <div class="dpad">
-      <button class="up"    data-dir="0,-1" aria-label="Haut">▲</button>
-      <button class="left"  data-dir="-1,0" aria-label="Gauche">◀</button>
-      <button class="right" data-dir="1,0"  aria-label="Droite">▶</button>
-      <button class="down"  data-dir="0,1"  aria-label="Bas">▼</button>
     </div>
   </section>
 
-  <!-- Fenêtre de pub simulée -->
+  <!-- Fenêtre de pub simulée (mode local uniquement) -->
   <div class="modal hidden" id="adModal">
     <p class="adtag" data-i18n="adTag"></p>
     <p class="adcount" id="adCount">10</p>
@@ -219,553 +431,1050 @@
 
   <div class="toast" id="toast"></div>
 
-
 <script>
-  // ====== 7. LES DONNÉES : animaux et décors de la boutique ======
-  // Les textes sont des listes [français, anglais, espagnol]
-  const ANIMALS = [
-    { id: 'snake',  name: ['Serpent Vert', 'Green Snake', 'Serpiente Verde'],     head: '🟢', food: '🍎', foodName: ['Pommes', 'Apples', 'Manzanas'],   body: '#3ddc84', price: 0 },
-    { id: 'dog',    name: ['Petit Chien', 'Little Dog', 'Perrito'],               head: '🐶', food: '🦴', foodName: ['Os', 'Bones', 'Huesos'],          body: '#c98a4b', price: 30 },
-    { id: 'cat',    name: ['Chat Mignon', 'Cute Cat', 'Gatito Lindo'],            head: '🐱', food: '🐟', foodName: ['Poissons', 'Fish', 'Pescados'],   body: '#f0a35e', price: 50 },
-    { id: 'panda',  name: ['Panda Zen', 'Zen Panda', 'Panda Zen'],                head: '🐼', food: '🎋', foodName: ['Bambou', 'Bamboo', 'Bambú'],      body: '#e8e8f0', price: 100 },
-    { id: 'dragon', name: ['Dragon de Feu', 'Fire Dragon', 'Dragón de Fuego'],    head: '🐲', food: '🔥', foodName: ['Flammes', 'Flames', 'Llamas'],    body: '#ff6a2b', price: 200 }
-  ];
-  const DECORS = [
-    { id: 'classic', name: ['Classique', 'Classic', 'Clásico'],                   color: '#151518', price: 0 },
-    { id: 'forest',  name: ['Forêt', 'Forest', 'Bosque'],                         color: '#132a13', price: 25 },
-    { id: 'cyber',   name: ['Cyber Espace', 'Cyber Space', 'Ciberespacio'],      color: '#0a1128', price: 40 },
-    { id: 'magma',   name: ['Enfer Magma', 'Magma Hell', 'Infierno de Magma'],    color: '#2b0f0f', price: 80 }
-  ];
+  (function () {
+    'use strict';
 
-  const $ = id => document.getElementById(id);   // petit raccourci pour trouver un élément
+    // ====== 1. DONNÉES : animaux et décors ======
+    // Textes ordonnés en [français, anglais, espagnol]
+    const ANIMALS = [
+      { id: 'snake',  name: ['Serpent Vert', 'Green Snake', 'Serpiente Verde'],   head: '🐍', food: '🍎', foodName: ['Pommes', 'Apples', 'Manzanas'], body: '#3ddc84', price: 0 },
+      { id: 'dog',    name: ['Petit Chien', 'Little Dog', 'Perrito'],             head: '🐶', food: '🦴', foodName: ['Os', 'Bones', 'Huesos'],        body: '#c98a4b', price: 30 },
+      { id: 'cat',    name: ['Chat Mignon', 'Cute Cat', 'Gatito Lindo'],          head: '🐱', food: '🐟', foodName: ['Poissons', 'Fish', 'Pescados'], body: '#f0a35e', price: 50 },
+      { id: 'panda',  name: ['Panda Zen', 'Zen Panda', 'Panda Zen'],              head: '🐼', food: '🎋', foodName: ['Bambou', 'Bamboo', 'Bambú'],    body: '#e8e8f0', price: 100 },
+      { id: 'dragon', name: ['Dragon de Feu', 'Fire Dragon', 'Dragón de Fuego'],  head: '🐲', food: '🔥', foodName: ['Flammes', 'Flames', 'Llamas'],  body: '#ff6a2b', price: 200 }
+    ];
+    const DECORS = [
+      { id: 'classic', name: ['Classique', 'Classic', 'Clásico'],                color: '#151518', price: 0 },
+      { id: 'forest',  name: ['Forêt', 'Forest', 'Bosque'],                      color: '#132a13', price: 25 },
+      { id: 'cyber',   name: ['Cyber Espace', 'Cyber Space', 'Ciberespacio'],    color: '#0a1128', price: 40 },
+      { id: 'magma',   name: ['Enfer Magma', 'Magma Hell', 'Infierno de Magma'], color: '#2b0f0f', price: 80 }
+    ];
 
-  // ====== 8. SAUVEGARDE (pièces, achats, choix) ======
-  // Sommes-nous dans YouTube Playables ? (en local, le SDK est absent ou inactif)
-  const inPlayables = typeof ytgame !== 'undefined' && ytgame.IN_PLAYABLES_ENV === true;
+    const $ = id => document.getElementById(id);
 
-  const SAVE_KEY = 'snakeZooSave';                // clé du localStorage (mode local seulement)
-  let save = { coins: 100, owned: ['snake', 'classic'], animal: 'snake', decor: 'classic', lang: 'fr' };
-  let saveReady = false;                          // vrai quand la progression est chargée
-  let cloudTimer = null;
+    // ====== 2. ENVIRONNEMENT YOUTUBE PLAYABLES & SAUVEGARDE ======
+    const inPlayables = typeof ytgame !== 'undefined' && ytgame.IN_PLAYABLES_ENV === true;
+    let playablesHostActive = false; // vrai uniquement si un hôte YouTube Playables répond réellement
 
-  // Charge la progression : cloud YouTube dans Playables, sinon localStorage
-  async function loadProgress() {
-    let raw = null;
-    try {
-      raw = inPlayables ? await ytgame.game.loadData() : localStorage.getItem(SAVE_KEY);
-    } catch (e) { /* pas de sauvegarde : on repart de zéro */ }
-    let found = false;
-    try {
-      const data = JSON.parse(raw);
-      if (data && typeof data.coins === 'number') { Object.assign(save, data); found = true; }
-    } catch (e) { /* données vides ou illisibles */ }
-    if (!found) save.lang = detectLanguage();     // 1er lancement : langue de YouTube ou du navigateur
-    saveReady = true;
-  }
+    const SAVE_KEY = 'snakeZooSave';
+    const save = { coins: 100, owned: ['snake', 'classic'], animal: 'snake', decor: 'classic', lang: 'fr', sound: true };
+    let saveReady = false;
+    let cloudTimer = null;
 
-  function detectLanguage() {
-    let code = '';
-    try { code = (inPlayables ? ytgame.system.getLanguage() : navigator.language) || ''; } catch (e) { /* ignoré */ }
-    code = code.slice(0, 2).toLowerCase();
-    return ['fr', 'en', 'es'].includes(code) ? code : 'en';
-  }
+    function safe(fn) {
+      try { return fn(); } catch (e) { return undefined; }
+    }
 
-  // Sauvegarde : cloud YouTube (regroupé sur 0,8 s) ou localStorage en local
-  function persist() {
-    if (!saveReady) return;                       // jamais avant la fin du chargement
-    if (inPlayables) {
+    async function detectLanguage() {
+      let code = '';
+      if (inPlayables) {
+        try {
+          const ytLang = await Promise.race([
+            Promise.resolve(ytgame.system.getLanguage()).then(val => {
+              if (val) playablesHostActive = true;
+              return val || '';
+            }),
+            new Promise(resolve => setTimeout(() => resolve(''), 400))
+          ]);
+          code = ytLang || navigator.language || '';
+        } catch (e) {
+          code = navigator.language || '';
+        }
+      } else {
+        try {
+          code = navigator.language || '';
+        } catch (e) { /* ignoré */ }
+      }
+      code = String(code).slice(0, 2).toLowerCase();
+      return ['fr', 'en', 'es'].includes(code) ? code : 'en';
+    }
+
+    async function loadProgress() {
+      let raw = null;
+      if (inPlayables) {
+        try {
+          const loadPromise = Promise.resolve(ytgame.game.loadData()).then(val => {
+            playablesHostActive = true;
+            return { ok: true, val };
+          });
+          loadPromise.catch(function () {});
+          const res = await Promise.race([
+            loadPromise,
+            new Promise(resolve => setTimeout(() => resolve({ ok: false }), 1000))
+          ]);
+          if (res && res.ok) {
+            raw = res.val;
+          }
+        } catch (e) { /* pas de sauvegarde */ }
+      } else {
+        try {
+          raw = window.localStorage.getItem(SAVE_KEY);
+        } catch (e) { /* pas de sauvegarde */ }
+      }
+
+      let found = false;
+      try {
+        const data = JSON.parse(raw);
+        if (data && typeof data.coins === 'number') {
+          Object.assign(save, data);
+          if (!Array.isArray(save.owned)) save.owned = ['snake', 'classic'];
+          if (typeof save.sound !== 'boolean') save.sound = true;
+          found = true;
+        }
+      } catch (e) { /* données absentes ou corrompues */ }
+
+      if (!found) save.lang = await detectLanguage();
+      saveReady = true;
+    }
+
+    function flushCloud() {
       clearTimeout(cloudTimer);
-      cloudTimer = setTimeout(flushCloud, 800);
-    } else {
-      try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) { /* tant pis */ }
+      cloudTimer = null;
+      if (!inPlayables || !saveReady) return;
+      try {
+        const p = ytgame.game.saveData(JSON.stringify(save));
+        if (p && typeof p.catch === 'function') p.catch(function () {});
+      } catch (e) { /* ignoré */ }
     }
-  }
-  function flushCloud() {                         // envoie tout de suite à YouTube
-    clearTimeout(cloudTimer);
-    cloudTimer = null;
-    if (!inPlayables || !saveReady) return;
-    try {
-      const p = ytgame.game.saveData(JSON.stringify(save));
-      if (p && p.catch) p.catch(function () { /* tant pis */ });
-    } catch (e) { /* tant pis */ }
-  }
 
-  const currentAnimal = () => ANIMALS.find(a => a.id === save.animal) || ANIMALS[0];
-  const currentDecor  = () => DECORS.find(d => d.id === save.decor) || DECORS[0];
-
-  // ====== 8b. LANGUES (français, anglais, espagnol) ======
-  const LANGS = ['fr', 'en', 'es'];
-  const TEXT = {
-    tagline:        ['Mange, grandis et débloque de nouveaux amis !', 'Eat, grow and unlock new friends!', '¡Come, crece y desbloquea nuevos amigos!'],
-    play:           ['JOUER', 'PLAY', 'JUGAR'],
-    shop:           ['BOUTIQUE', 'SHOP', 'TIENDA'],
-    language:       ['Langue', 'Language', 'Idioma'],
-    back:           ['← Retour', '← Back', '← Volver'],
-    quit:           ['← Quitter', '← Quit', '← Salir'],
-    video:          ['Regarder une vidéo (+50 pièces)', 'Watch a video (+50 coins)', 'Ver un vídeo (+50 monedas)'],
-    tabAnimals:     ['ANIMAUX', 'ANIMALS', 'ANIMALES'],
-    tabDecors:      ['DÉCORS', 'BACKGROUNDS', 'FONDOS'],
-    score:          ['Score :', 'Score:', 'Puntos:'],
-    second:         ['Seconde Chance (Regarder une pub)', 'Second Chance (Watch an ad)', 'Segunda oportunidad (Ver un anuncio)'],
-    menu:           ['Menu', 'Menu', 'Menú'],
-    adTag:          ['Publicité (simulation)', 'Ad (simulation)', 'Anuncio (simulación)'],
-    adCancel:       ['Annuler (sans récompense)', 'Cancel (no reward)', 'Cancelar (sin recompensa)'],
-    adRewardCoins:  ['Récompense : +50 pièces', 'Reward: +50 coins', 'Recompensa: +50 monedas'],
-    adRewardResume: ['La partie reprend après la pub', 'The game resumes after the ad', 'La partida continúa tras el anuncio'],
-    coinsToast:     ['+50 pièces !', '+50 coins!', '¡+50 monedas!'],
-    noCoins:        ['Pas assez de pièces !', 'Not enough coins!', '¡No tienes suficientes monedas!'],
-    unlockedToast:  ['débloqué !', 'unlocked!', 'desbloqueado'],
-    equipped:       ['Équipé', 'Equipped', 'Equipado'],
-    unlocked:       ['Débloqué', 'Unlocked', 'Desbloqueado'],
-    locked:         ['Verrouillé', 'Locked', 'Bloqueado'],
-    equip:          ['Équiper', 'Equip', 'Equipar'],
-    eats:           ['Mange :', 'Eats:', 'Come:'],
-    eatGoal:        ['Mange :', 'Eat:', 'Come:'],
-    pressDir:       ['Appuie sur une direction pour partir.', 'Press a direction to start.', 'Pulsa una dirección para empezar.'],
-    ready:          ['Prêt ?', 'Ready?', '¿Listo?'],
-    replay:         ['REJOUER', 'PLAY AGAIN', 'JUGAR DE NUEVO'],
-    ouch:           ['Aïe !', 'Ouch!', '¡Ay!'],
-    wall:           ['Tu as heurté le mur.', 'You hit the wall.', 'Chocaste con la pared.'],
-    tail:           ['Tu t’es mordu la queue.', 'You bit your own tail.', 'Te mordiste la cola.'],
-    bravo:          ['Bravo !', 'Well done!', '¡Bien hecho!'],
-    full:           ['La grille est pleine.', 'The grid is full.', 'La cuadrícula está llena.'],
-    paused:         ['PAUSE', 'PAUSED', 'PAUSA'],
-    pausedText:     ['Le jeu est en pause.', 'The game is paused.', 'El juego está en pausa.'],
-    resume:         ['REPRENDRE', 'RESUME', 'REANUDAR'],
-    adFail:         ['Pub indisponible ou non terminée : pas de récompense.', 'Ad unavailable or not finished: no reward.', 'Anuncio no disponible o sin terminar: sin recompensa.']
-  };
-  const langIndex = () => Math.max(0, LANGS.indexOf(save.lang));
-  const t = key => TEXT[key][langIndex()];       // t('play') donne « JOUER », « PLAY » ou « JUGAR »
-  const pick = list => list[langIndex()];        // choisit le bon texte dans une liste [fr, en, es]
-
-  function applyLanguage() {
-    if (!LANGS.includes(save.lang)) save.lang = 'fr';
-    document.documentElement.lang = save.lang;
-    document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
-    document.querySelectorAll('.lang').forEach(b => b.classList.toggle('on', b.dataset.lang === save.lang));
-  }
-
-  function updateCoins() { $('coins').textContent = '🪙 ' + save.coins; }
-
-  let toastTimer;
-  function toast(msg) {
-    const t = $('toast');
-    t.textContent = msg;
-    t.classList.add('show');
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
-  }
-
-  // ====== 9. NAVIGATION ENTRE LES ÉCRANS ======
-  function go(name) {
-    stopGame();                                   // on arrête toujours le jeu en arrière-plan
-    document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === name));
-    if (name === 'shop') renderShop();
-    if (name === 'game') newRound();
-  }
-  $('btnPlay').onclick = () => go('game');
-  $('btnShop').onclick = () => go('shop');
-  $('btnShopBack').onclick = () => go('menu');
-  $('btnQuit').onclick = () => go('menu');
-  $('ovMenu').onclick = () => go('menu');
-
-  document.querySelectorAll('.lang').forEach(function (b) {
-    b.onclick = function () { save.lang = b.dataset.lang; persist(); applyLanguage(); };
-  });
-
-  // ====== 10. PUBLICITÉS RÉCOMPENSÉES ======
-  // Dans YouTube : vraie pub (ytgame.ads). En local : simulation de 10 secondes.
-  let adTimer = null;
-
-  let adBusy = false;
-
-  // rewardId : identifiant unique de la récompense (demandé par YouTube, sans donnée personnelle)
-  function playAd(rewardId, rewardText, onDone) {
-    if (!inPlayables) return simulateAd(rewardText, onDone);   // en local : simulation
-    if (adBusy) return;
-    adBusy = true;
-    Promise.resolve()
-      .then(function () { return ytgame.ads.requestRewardedAd(rewardId); })
-      .then(function (earned) { if (earned) onDone(); else toast(t('adFail')); })
-      .catch(function () { toast(t('adFail')); })
-      .then(function () { adBusy = false; });
-  }
-
-  function simulateAd(rewardText, onDone) {
-    stopAd();
-    const total = 10000;                          // 10 secondes
-    const t0 = Date.now();
-    $('adReward').textContent = rewardText;
-    $('adCount').textContent = '10';
-    $('adBar').style.width = '0%';
-    $('adModal').classList.remove('hidden');
-    adTimer = setInterval(function () {
-      const left = Math.max(0, total - (Date.now() - t0));
-      $('adCount').textContent = Math.ceil(left / 1000);
-      $('adBar').style.width = (100 - left / total * 100) + '%';
-      if (left <= 0) { stopAd(); onDone(); }      // fini : on ferme et on donne la récompense
-    }, 100);
-  }
-  function stopAd() {
-    clearInterval(adTimer);
-    adTimer = null;
-    $('adModal').classList.add('hidden');
-  }
-  $('adCancel').onclick = stopAd;                 // annuler = fermer sans récompense
-
-  $('btnVideo').onclick = () => playAd('shop-coins-50', t('adRewardCoins'), function () {
-    save.coins += 50;
-    persist(); updateCoins();
-    toast(t('coinsToast'));
-  });
-
-  // ====== 11. BOUTIQUE ======
-  let tab = 'animals';
-
-  document.querySelectorAll('.tab').forEach(function (b) {
-    b.onclick = () => { tab = b.dataset.tab; renderShop(); };
-  });
-
-  function renderShop() {
-    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.tab === tab));
-    const list = tab === 'animals' ? ANIMALS : DECORS;
-    const key = tab === 'animals' ? 'animal' : 'decor';
-    $('items').innerHTML = '';
-
-    list.forEach(function (item) {
-      const owned = save.owned.includes(item.id);
-      const equipped = save[key] === item.id;
-      const card = document.createElement('div');
-      card.className = 'card' + (equipped ? ' eq' : '');
-
-      const preview = tab === 'animals'
-        ? '<div class="preview">' + item.head + item.food + '</div>'
-        : '<div class="swatch" style="background:' + item.color + '"></div>';
-      const state = equipped ? '✅ ' + t('equipped') : owned ? t('unlocked') : '🔒 ' + t('locked');
-      const extra = tab === 'animals' ? '<span class="state">' + t('eats') + ' ' + pick(item.foodName) + '</span>' : '';
-      card.innerHTML = preview + '<b>' + pick(item.name) + '</b><span class="state">' + state + '</span>' + extra;
-
-      const btn = document.createElement('button');
-      btn.className = 'btn small' + (owned ? '' : ' gold');
-      btn.textContent = equipped ? t('equipped') : owned ? t('equip') : '🪙 ' + item.price;
-      btn.disabled = equipped;
-      btn.onclick = () => choose(item, key, owned);
-      card.appendChild(btn);
-      $('items').appendChild(card);
-    });
-  }
-
-  function choose(item, key, owned) {
-    if (!owned) {
-      if (save.coins < item.price) { toast(t('noCoins')); return; }
-      save.coins -= item.price;
-      save.owned.push(item.id);
-      updateCoins();
-      toast(pick(item.name) + ' ' + t('unlockedToast'));
-    }
-    save[key] = item.id;                          // on équipe directement
-    persist();
-    renderShop();
-  }
-
-  // ====== 12. LE JEU : état ======
-  const G = 14;                                   // grille de 14 x 14 cases
-  const cv = $('cv');
-  const ctx = cv.getContext('2d');
-  const T = cv.width / G;                         // taille d’une case
-
-  let snake, dir, queue, food, score;
-  let secondChanceUsed = false;
-  let state = 'menu';                             // 'menu', 'ready', 'playing' ou 'over'
-  let timer = null;
-
-  function newRound() {
-    score = 0;
-    secondChanceUsed = false;
-    $('score').textContent = 0;
-    respawn();
-    state = 'ready';
-    const a = currentAnimal();
-    showOverlay(t('ready'), t('eatGoal') + ' ' + pick(a.foodName) + ' ' + a.food + '\n' + t('pressDir'), t('play'), false, false);
-    draw();
-  }
-
-  // Place le serpent au centre de la grille (aussi utilisé pour la seconde chance)
-  function respawn() {
-    const m = G / 2;
-    snake = [{ x: m, y: m }, { x: m - 1, y: m }, { x: m - 2, y: m }];
-    dir = { x: 1, y: 0 };
-    queue = [];
-    placeFood();
-  }
-
-  function placeFood() {
-    const free = [];
-    for (let x = 0; x < G; x++) {
-      for (let y = 0; y < G; y++) {
-        if (!snake.some(c => c.x === x && c.y === y)) free.push({ x, y });
+    function persist() {
+      if (!saveReady) return;
+      if (inPlayables) {
+        clearTimeout(cloudTimer);
+        cloudTimer = setTimeout(flushCloud, 800);
+      } else {
+        try { window.localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) { /* ignoré */ }
       }
     }
-    food = free.length ? free[Math.floor(Math.random() * free.length)] : null;
-  }
 
-  // ====== 13. LE JEU : boucle ======
-  function schedule(ms) { clearTimeout(timer); timer = setTimeout(step, ms); }
+    const currentAnimal = () => ANIMALS.find(a => a.id === save.animal) || ANIMALS[0];
+    const currentDecor  = () => DECORS.find(d => d.id === save.decor) || DECORS[0];
 
-  function stopGame() {                           // arrêt propre : plus aucun minuteur actif
-    clearTimeout(timer);
-    timer = null;
-    state = 'menu';
-  }
+    // ====== 3. MULTILINGUE (fr, en, es) ======
+    const LANGS = ['fr', 'en', 'es'];
+    const TEXT = {
+      tagline:        ['Mange, grandis et débloque de nouveaux amis !', 'Eat, grow and unlock new friends!', '¡Come, crece y desbloquea nuevos amigos!'],
+      play:           ['JOUER', 'PLAY', 'JUGAR'],
+      shop:           ['BOUTIQUE', 'SHOP', 'TIENDA'],
+      language:       ['Langue', 'Language', 'Idioma'],
+      back:           ['← Retour', '← Back', '← Volver'],
+      pauseBtn:       ['⏸ Pause', '⏸ Pause', '⏸ Pausa'],
+      video:          ['Regarder une vidéo (+50 pièces)', 'Watch a video (+50 coins)', 'Ver un vídeo (+50 monedas)'],
+      tabAnimals:     ['ANIMAUX', 'ANIMALS', 'ANIMALES'],
+      tabDecors:      ['DÉCORS', 'BACKGROUNDS', 'FONDOS'],
+      score:          ['Score :', 'Score:', 'Puntos:'],
+      second:         ['Seconde Chance (Regarder une pub)', 'Second Chance (Watch an ad)', 'Segunda oportunidad (Ver un anuncio)'],
+      menu:           ['Menu', 'Menu', 'Menú'],
+      adTag:          ['Publicité (simulation)', 'Ad (simulation)', 'Anuncio (simulación)'],
+      adCancel:       ['Annuler (sans récompense)', 'Cancel (no reward)', 'Cancelar (sin recompensa)'],
+      adRewardCoins:  ['Récompense : +50 pièces', 'Reward: +50 coins', 'Recompensa: +50 monedas'],
+      adRewardResume: ['La partie reprend après la pub', 'The game resumes after the ad', 'La partida continúa tras el anuncio'],
+      coinsToast:     ['+50 pièces !', '+50 coins!', '¡+50 monedas!'],
+      noCoins:        ['Pas assez de pièces !', 'Not enough coins!', '¡No tienes suficientes monedas!'],
+      unlockedToast:  ['débloqué !', 'unlocked!', 'desbloqueado'],
+      equipped:       ['Équipé', 'Equipped', 'Equipado'],
+      unlocked:       ['Débloqué', 'Unlocked', 'Desbloqueado'],
+      locked:         ['Verrouillé', 'Locked', 'Bloqueado'],
+      equip:          ['Équiper', 'Equip', 'Equipar'],
+      eats:           ['Mange :', 'Eats:', 'Come:'],
+      eatGoal:        ['Mange :', 'Eat:', 'Come:'],
+      pressDir:       ['Glisse sur l’écran ou appuie sur une direction.', 'Swipe or press a direction to start.', 'Desliza o pulsa una dirección para empezar.'],
+      ready:          ['Prêt ?', 'Ready?', '¿Listo?'],
+      replay:         ['REJOUER', 'PLAY AGAIN', 'JUGAR DE NUEVO'],
+      ouch:           ['Aïe !', 'Ouch!', '¡Ay!'],
+      wall:           ['Tu as heurté le mur.', 'You hit the wall.', 'Chocaste con la pared.'],
+      tail:           ['Tu t’es mordu la queue.', 'You bit your own tail.', 'Te mordiste la cola.'],
+      bravo:          ['Bravo !', 'Well done!', '¡Bien hecho!'],
+      full:           ['La grille est pleine.', 'The grid is full.', 'La cuadrícula está llena.'],
+      paused:         ['PAUSE', 'PAUSED', 'PAUSA'],
+      pausedText:     ['Le jeu est en pause.', 'The game is paused.', 'El juego está en pausa.'],
+      resume:         ['REPRENDRE', 'RESUME', 'REANUDAR'],
+      adFail:         ['Pub indisponible ou non terminée : pas de récompense.', 'Ad unavailable or not finished: no reward.', 'Anuncio no disponible o sin terminar: sin recompensa.'],
+      soundOn:        ['🔊 Son', '🔊 Sound', '🔊 Sonido'],
+      soundOff:       ['🔇 Muet', '🔇 Muted', '🔇 Silencio'],
+      soundLabel:     ['Activer ou couper le son', 'Toggle sound', 'Activar o silenciar sonido'],
+      ytMuted:        ['Son coupé par le lecteur YouTube.', 'Audio is muted by YouTube.', 'Audio silenciado por YouTube.']
+    };
 
-  // ====== 13b. PAUSE, SON ET SDK YOUTUBE ======
-  function safe(fn) { try { fn(); } catch (e) { /* le jeu continue même si le SDK échoue */ } }
+    const langIndex = () => Math.max(0, LANGS.indexOf(save.lang));
+    const t = key => TEXT[key][langIndex()];
+    const pick = list => list[langIndex()];
 
-  // Envoie le score à YouTube (uniquement dans Playables), toujours comme nombre ENTIER
-  function sendScore(value) {
-    if (!inPlayables) return;
-    const intScore = Math.trunc(Number(value));
-    if (!Number.isSafeInteger(intScore) || intScore < 0) return;
-    safe(function () {
-      const p = ytgame.engagement.sendScore({ value: intScore });
-      if (p && p.catch) p.catch(function () { /* tant pis */ });
-    });
-  }
+    function applyLanguage() {
+      if (!LANGS.includes(save.lang)) save.lang = 'fr';
+      document.documentElement.lang = save.lang;
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        el.textContent = t(el.dataset.i18n);
+      });
+      document.querySelectorAll('.lang').forEach(b => {
+        b.classList.toggle('on', b.dataset.lang === save.lang);
+      });
+      updateSoundButton();
+    }
 
-  function pauseGame() {
-    if (state !== 'playing') return;
-    state = 'paused';
-    clearTimeout(timer);                          // l’animal ne bouge plus
-    showOverlay(t('paused'), t('pausedText'), t('resume'), false, true);
-  }
+    function updateCoins() {
+      $('coins').textContent = '🪙 ' + save.coins;
+    }
 
-  function resumeGame() {
-    if (state !== 'paused') return;
-    state = 'playing';
-    $('overlay').classList.add('hidden');
-    schedule(600);                                // petit délai pour se préparer
-  }
+    let toastTimer = null;
+    function toast(msg) {
+      const el = $('toast');
+      el.textContent = msg;
+      el.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.remove('show'), 2000);
+    }
 
-  // Sons : petits bips générés par le navigateur (aucun fichier externe)
-  let audioEnabled = true;
-  let audioCtx = null;
+    // ====== 4. AUDIO & CYCLE DE VIE SYSTÈME ======
+    let audioEnabled = true;    // état audio du système (YouTube Playables)
+    let ytAudioSynced = false;  // vrai uniquement après un véritable événement audio de l'hôte YouTube
+    let systemPaused = false;
+    let adBusy = false;
+    let audioCtx = null;
+    let audioUnlocked = false;
 
-  function setAudio(on) {                         // appelé par YouTube quand le son est coupé/activé
-    audioEnabled = !!on;
-    if (!audioCtx) return;
-    if (audioEnabled) audioCtx.resume().catch(function () {});
-    else audioCtx.suspend().catch(function () {});
-  }
+    function isAudioActive() {
+      return audioEnabled && save.sound !== false && !systemPaused && !adBusy && (inPlayables || !document.hidden);
+    }
 
-  function beep(freq, ms) {
-    if (!audioEnabled) return;
-    try {
-      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-      if (audioCtx.state === 'suspended') audioCtx.resume().catch(function () {});
+    function ensureAudioCtx() {
+      if (!audioCtx) {
+        const AudioCtor = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtor) return null;
+        audioCtx = new AudioCtor();
+      }
+      return audioCtx;
+    }
+
+    function primeSilentBuffer(ac) {
+      if (!ac || audioUnlocked) return;
+      audioUnlocked = true;
+      const buf = ac.createBuffer(1, 1, 22050);
+      const src = ac.createBufferSource();
+      src.buffer = buf;
+      src.connect(ac.destination);
+      src.start(0);
+    }
+
+    function unlockAudio() {
+      if (!isAudioActive()) return;
+      try {
+        const ac = ensureAudioCtx();
+        if (!ac) return;
+        if (ac.state === 'suspended') {
+          ac.resume().then(function () {
+            primeSilentBuffer(ac);
+          }).catch(function () {});
+        } else {
+          primeSilentBuffer(ac);
+        }
+      } catch (e) { /* audio indisponible */ }
+    }
+
+    function syncAudioState() {
+      if (!audioCtx) return;
+      if (isAudioActive()) {
+        if (audioCtx.state === 'suspended') audioCtx.resume().catch(function () {});
+      } else {
+        if (audioCtx.state === 'running') audioCtx.suspend().catch(function () {});
+      }
+    }
+
+    function updateSoundButton() {
+      const btn = $('btnSound');
+      if (!btn) return;
+      const on = audioEnabled && save.sound !== false;
+      btn.textContent = on ? t('soundOn') : t('soundOff');
+      btn.classList.toggle('off', !on);
+      btn.setAttribute('aria-pressed', String(on));
+      btn.setAttribute('aria-label', t('soundLabel'));
+    }
+
+    function setAudio(on) {
+      audioEnabled = !!on;
+      updateSoundButton();
+      syncAudioState();
+    }
+
+    function playTone(freq, ms, vol, type) {
+      if (!audioCtx || audioCtx.state !== 'running' || !isAudioActive()) return;
+      const now = audioCtx.currentTime;
+      const dur = Math.max(0.02, ms / 1000);
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
-      osc.type = 'square';
-      osc.frequency.value = freq;
-      gain.gain.value = 0.05;
+      osc.type = type || 'square';
+      osc.frequency.setValueAtTime(freq, now);
+      gain.gain.setValueAtTime(vol || 0.07, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
       osc.connect(gain);
       gain.connect(audioCtx.destination);
-      osc.start();
-      osc.stop(audioCtx.currentTime + ms / 1000);
-    } catch (e) { /* pas de son possible : tant pis */ }
-  }
-
-  function onSystemPause() {                      // YouTube met le jeu en pause
-    pauseGame();
-    flushCloud();
-    if (audioCtx) audioCtx.suspend().catch(function () {});
-  }
-  function onSystemResume() {                     // YouTube reprend : le joueur appuie sur « Reprendre »
-    if (audioEnabled && audioCtx) audioCtx.resume().catch(function () {});
-  }
-
-  document.addEventListener('visibilitychange', function () {
-    if (document.hidden) { pauseGame(); flushCloud(); }   // onglet caché : pause (utile aussi en local)
-  });
-
-  function begin() {
-    state = 'playing';
-    $('overlay').classList.add('hidden');
-    schedule(speed());
-  }
-
-  function speed() { return Math.max(70, 150 - score * 3); }   // le jeu accélère
-
-  function step() {
-    if (state !== 'playing') return;
-    if (queue.length) dir = queue.shift();
-
-    const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
-    if (head.x < 0 || head.x >= G || head.y < 0 || head.y >= G) return gameOver(t('ouch'), t('wall'));
-
-    const eats = food && head.x === food.x && head.y === food.y;
-    const body = eats ? snake : snake.slice(0, -1);
-    if (body.some(c => c.x === head.x && c.y === head.y)) return gameOver(t('ouch'), t('tail'));
-
-    snake.unshift(head);
-    if (eats) {
-      score++;
-      beep(660, 70);
-      sendScore(score);                           // +1 point : on prévient YouTube
-      save.coins++;                               // +1 pièce par aliment mangé
-      persist(); updateCoins();
-      $('score').textContent = score;
-      placeFood();
-      if (!food) return gameOver(t('bravo'), t('full'));
-    } else {
-      snake.pop();
-    }
-    draw();
-    schedule(speed());
-  }
-
-  function gameOver(title, text) {
-    state = 'over';
-    beep(180, 300);
-    sendScore(score);                             // score final
-    clearTimeout(timer);
-    draw();
-    showOverlay(title, text + '\n' + t('score') + ' ' + score, t('replay'), !secondChanceUsed, true);
-  }
-
-  function showOverlay(title, text, mainLabel, withSecond, withMenu) {
-    $('ovTitle').textContent = title;
-    $('ovText').textContent = text;
-    $('ovMain').textContent = mainLabel;
-    $('ovSecond').classList.toggle('hidden', !withSecond);
-    $('ovMenu').classList.toggle('hidden', !withMenu);
-    $('overlay').classList.remove('hidden');
-  }
-
-  $('ovMain').onclick = function () {
-    if (state === 'paused') return resumeGame();
-    if (state === 'over') newRound();
-    begin();
-  };
-
-  // Seconde chance : pub de 10 s, puis on repart au centre, score conservé (1 fois par partie)
-  $('ovSecond').onclick = () => playAd('second-chance-revive', t('adRewardResume'), function () {
-    secondChanceUsed = true;
-    respawn();
-    $('overlay').classList.add('hidden');
-    state = 'playing';
-    draw();
-    schedule(700);
-  });
-
-  // ====== 14. DIRECTIONS ======
-  function turn(dx, dy) {
-    if (state === 'ready') begin();               // la 1re direction lance la partie
-    if (state !== 'playing') return;
-    const last = queue.length ? queue[queue.length - 1] : dir;
-    if (dx === -last.x && dy === -last.y) return; // pas de demi-tour
-    if (dx === last.x && dy === last.y) return;
-    if (queue.length < 2) queue.push({ x: dx, y: dy });
-  }
-
-  // ====== 15. DESSIN ======
-  function draw() {
-    const a = currentAnimal();
-    ctx.fillStyle = currentDecor().color;
-    ctx.fillRect(0, 0, cv.width, cv.height);
-    ctx.fillStyle = 'rgba(255,255,255,0.035)';    // léger damier
-    for (let x = 0; x < G; x++) for (let y = 0; y < G; y++) if ((x + y) % 2) ctx.fillRect(x * T, y * T, T, T);
-
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    const emojiFont = 'px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
-
-    if (food) {                                   // nourriture : grande, avec un halo qui pulse
-      const fx = (food.x + 0.5) * T, fy = (food.y + 0.5) * T;
-      const pulse = 1 + 0.12 * Math.sin(Date.now() / 150);
-      ctx.beginPath();
-      ctx.arc(fx, fy, T * 0.62 * pulse, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(255,255,255,0.28)';
-      ctx.fill();
-      ctx.lineWidth = 3;
-      ctx.strokeStyle = '#ffc94d';
-      ctx.stroke();
-      ctx.fillStyle = '#fff';                     // couleur opaque : sinon l’émoji devient presque transparent
-      ctx.font = T + emojiFont;
-      ctx.fillText(a.food, fx, fy + T * 0.05);
+      osc.start(now);
+      osc.stop(now + dur + 0.01);
     }
 
-    ctx.fillStyle = a.body;                       // corps : carrés arrondis de la couleur de l’animal
-    for (let i = snake.length - 1; i > 0; i--) {
-      ctx.beginPath();
-      ctx.roundRect(snake[i].x * T + 2, snake[i].y * T + 2, T - 4, T - 4, 7);
-      ctx.fill();
+    function beep(freq, ms, vol, type) {
+      if (!isAudioActive()) return;
+      try {
+        const ac = ensureAudioCtx();
+        if (!ac) return;
+        if (ac.state === 'running') {
+          playTone(freq, ms, vol, type);
+        } else if (ac.state === 'suspended') {
+          ac.resume().then(function () {
+            playTone(freq, ms, vol, type);
+          }).catch(function () {});
+        }
+      } catch (e) { /* audio indisponible */ }
     }
-    ctx.fillStyle = '#fff';
-    ctx.font = (T * 0.92) + emojiFont;
-    ctx.fillText(a.head, (snake[0].x + 0.5) * T, (snake[0].y + 0.55) * T);   // tête : l’émoji
-  }
 
-  // ====== 16. COMMANDES : clavier, boutons tactiles, glissement ======
-  const KEYS = {
-    ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0],
-    w: [0, -1], z: [0, -1], s: [0, 1], a: [-1, 0], q: [-1, 0], d: [1, 0]
-  };
-  document.addEventListener('keydown', function (e) {
-    if (!$('game').classList.contains('active') || e.ctrlKey || e.metaKey || e.altKey) return;
-    if ($('adModal').classList.contains('hidden') === false) return;
-    const dirKey = KEYS[e.key.length === 1 ? e.key.toLowerCase() : e.key];
-    if (!dirKey) return;
-    e.preventDefault();                           // empêche la page de défiler
-    turn(dirKey[0], dirKey[1]);
-  });
+    document.addEventListener('pointerdown', unlockAudio, { passive: true });
+    document.addEventListener('keydown', unlockAudio);
 
-  document.querySelectorAll('[data-dir]').forEach(function (b) {
-    b.addEventListener('pointerdown', function (e) {
-      e.preventDefault();
-      const [dx, dy] = b.dataset.dir.split(',').map(Number);
-      turn(dx, dy);
+    document.addEventListener('click', function (e) {
+      unlockAudio();
+      const btn = e.target && typeof e.target.closest === 'function' ? e.target.closest('button') : null;
+      if (!btn || btn.disabled || btn.id === 'btnSound') return;
+      beep(580, 45, 0.07, 'triangle');
     });
-  });
 
-  let sx = 0, sy = 0;
-  cv.addEventListener('touchstart', e => { sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: true });
-  cv.addEventListener('touchend', function (e) {
-    const dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy;
-    if (Math.max(Math.abs(dx), Math.abs(dy)) < 24) return;
-    if (Math.abs(dx) > Math.abs(dy)) turn(dx > 0 ? 1 : -1, 0); else turn(0, dy > 0 ? 1 : -1);
-  }, { passive: true });
+    $('btnSound').onclick = function () {
+      if (ytAudioSynced && !audioEnabled) {
+        toast(t('ytMuted'));
+        return;
+      }
+      audioEnabled = true;
+      save.sound = !(save.sound !== false);
+      persist();
+      updateSoundButton();
+      syncAudioState();
+      if (save.sound) {
+        unlockAudio();
+        beep(660, 60, 0.07, 'triangle');
+      }
+    };
 
-  // ====== 17. C’EST PARTI ======
-  async function boot() {
-    if (inPlayables) {                            // abonnements au SDK YouTube
-      safe(() => setAudio(ytgame.system.isAudioEnabled()));
-      safe(() => ytgame.system.onAudioEnabledChange(setAudio));
-      safe(() => ytgame.system.onPause(onSystemPause));
-      safe(() => ytgame.system.onResume(onSystemResume));
+    // ====== 5. NAVIGATION ENTRE ÉCRANS ======
+    function go(name) {
+      stopAd();
+      stopGame();
+      systemPaused = false;
+      document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === name));
+      if (name === 'shop') renderShop();
+      if (name === 'game') {
+        resizeCanvas();
+        newRound();
+      }
     }
 
-    // 1. Le menu s’affiche (ses boutons sont déjà cliquables)
-    applyLanguage();
-    updateCoins();
-    await Promise.race([                          // on attend le 1er dessin (au maximum 0,3 s)
-      new Promise(resolve => requestAnimationFrame(resolve)),
-      new Promise(resolve => setTimeout(resolve, 300))
-    ]);
+    $('btnPlay').onclick = () => go('game');
+    $('btnShop').onclick = () => go('shop');
+    $('btnShopBack').onclick = () => go('menu');
+    $('ovMenu').onclick = () => go('menu');
 
-    // 2. On prévient YouTube, dans l’ordre : premier visuel, puis jeu prêt
-    if (inPlayables) {
-      safe(() => ytgame.game.firstFrameReady());
-      safe(() => ytgame.game.gameReady());
+    document.querySelectorAll('.lang').forEach(b => {
+      b.onclick = function () {
+        save.lang = b.dataset.lang;
+        persist();
+        applyLanguage();
+      };
+    });
+
+    // ====== 6. PUBLICITÉS (SDK YouTube Playables + simulation locale) ======
+    let adTimer = null;
+
+    function isAdCompleted(result) {
+      if (inPlayables && ytgame.ads && ytgame.ads.AdResult) {
+        if (result === ytgame.ads.AdResult.SHOWED) return true;
+      }
+      return result === 1 || result === 'SHOWED' || result === true || (!!result && result.status === 'COMPLETED');
     }
 
-    // 3. La progression se charge ensuite, sans bloquer gameReady
-    //    (aucune sauvegarde n’est envoyée tant qu’elle n’est pas chargée)
-    try { await loadProgress(); } catch (e) { saveReady = true; }
-    applyLanguage();
-    updateCoins();
-    if ($('shop').classList.contains('active')) renderShop();
-  }
-  boot();
+    async function playAd(rewardText, onDone) {
+      if (adBusy) return;
+
+      if (!inPlayables || !playablesHostActive) {
+        simulateAd(rewardText, onDone);
+        return;
+      }
+
+      adBusy = true;
+      pauseGameLoopOnly();
+      syncAudioState();
+
+      try {
+        const result = await Promise.race([
+          ytgame.ads.requestAd(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('ad-timeout')), 45000))
+        ]);
+        adBusy = false;
+        systemPaused = false;
+        syncAudioState();
+        if (isAdCompleted(result)) {
+          onDone();
+          return;
+        }
+        toast(t('adFail'));
+      } catch (e) {
+        toast(t('adFail'));
+      } finally {
+        adBusy = false;
+        systemPaused = false;
+        syncAudioState();
+      }
+    }
+
+    function simulateAd(rewardText, onDone) {
+      stopAd();
+      adBusy = true;
+      pauseGameLoopOnly();
+      syncAudioState();
+
+      const total = 10000;
+      const t0 = Date.now();
+      $('adReward').textContent = rewardText;
+      $('adCount').textContent = '10';
+      $('adBar').style.width = '0%';
+      $('adModal').classList.remove('hidden');
+
+      adTimer = setInterval(function () {
+        const left = Math.max(0, total - (Date.now() - t0));
+        $('adCount').textContent = String(Math.ceil(left / 1000));
+        $('adBar').style.width = (100 - (left / total) * 100) + '%';
+        if (left <= 0) {
+          stopAd();
+          onDone();
+        }
+      }, 100);
+    }
+
+    function stopAd() {
+      clearInterval(adTimer);
+      adTimer = null;
+      adBusy = false;
+      $('adModal').classList.add('hidden');
+      syncAudioState();
+    }
+
+    $('adCancel').onclick = stopAd;
+
+    $('btnVideo').onclick = () => playAd(t('adRewardCoins'), function () {
+      save.coins += 50;
+      persist();
+      updateCoins();
+      toast(t('coinsToast'));
+    });
+
+    // ====== 7. BOUTIQUE ======
+    let tab = 'animals';
+
+    document.querySelectorAll('.tab').forEach(b => {
+      b.onclick = () => {
+        tab = b.dataset.tab;
+        renderShop();
+      };
+    });
+
+    function renderShop() {
+      document.querySelectorAll('.tab').forEach(el => el.classList.toggle('on', el.dataset.tab === tab));
+      const list = tab === 'animals' ? ANIMALS : DECORS;
+      const key = tab === 'animals' ? 'animal' : 'decor';
+      const container = $('items');
+      container.innerHTML = '';
+
+      list.forEach(function (item) {
+        const owned = save.owned.includes(item.id);
+        const equipped = save[key] === item.id;
+        const card = document.createElement('div');
+        card.className = 'card' + (equipped ? ' eq' : '');
+
+        const preview = tab === 'animals'
+          ? '<div class="preview">' + item.head + item.food + '</div>'
+          : '<div class="swatch" style="background:' + item.color + '"></div>';
+        const stateLabel = equipped ? '✅ ' + t('equipped') : owned ? t('unlocked') : '🔒 ' + t('locked');
+        const extra = tab === 'animals' ? '<span class="state">' + t('eats') + ' ' + pick(item.foodName) + '</span>' : '';
+        card.innerHTML = preview + '<b>' + pick(item.name) + '</b><span class="state">' + stateLabel + '</span>' + extra;
+
+        const btn = document.createElement('button');
+        btn.className = 'btn small' + (owned ? '' : ' gold');
+        btn.textContent = equipped ? t('equipped') : owned ? t('equip') : '🪙 ' + item.price;
+        btn.disabled = equipped;
+        btn.onclick = () => choose(item, key, owned);
+        card.appendChild(btn);
+        container.appendChild(card);
+      });
+    }
+
+    function choose(item, key, owned) {
+      if (!owned) {
+        if (save.coins < item.price) {
+          toast(t('noCoins'));
+          return;
+        }
+        save.coins -= item.price;
+        save.owned.push(item.id);
+        updateCoins();
+        toast(pick(item.name) + ' ' + t('unlockedToast'));
+      }
+      save[key] = item.id;
+      persist();
+      renderShop();
+    }
+
+    // ====== 8. JEU : ÉTAT, CANVAS HiDPI & BOUCLE ======
+    const G = 14;
+    const cv = $('cv');
+    const ctx = cv.getContext('2d');
+    const stageEl = $('stage');
+    const stageWrap = $('stageWrap');
+    const gheadEl = $('ghead');
+
+    let boardCssSize = 420;
+    let boardDpr = 1;
+    let snake = [];
+    let dir = { x: 1, y: 0 };
+    let queue = [];
+    let food = null;
+    let score = 0;
+    let secondChanceUsed = false;
+    let state = 'menu'; // 'menu' | 'ready' | 'playing' | 'paused' | 'over'
+    let timer = null;
+    let rafId = null;
+
+    function resizeCanvas() {
+      const wrapRect = stageWrap.getBoundingClientRect();
+      if (!wrapRect.width || !wrapRect.height) return;
+
+      const cssSize = Math.max(180, Math.floor(Math.min(wrapRect.width, wrapRect.height, 640)));
+      const dpr = Math.min(window.devicePixelRatio || 1, 3);
+      const pixelSize = Math.round(cssSize * dpr);
+
+      boardCssSize = cssSize;
+      boardDpr = dpr;
+
+      stageEl.style.width = cssSize + 'px';
+      stageEl.style.height = cssSize + 'px';
+      stageEl.classList.toggle('compact', cssSize < 300);
+
+      const isLandscapeCompact = window.matchMedia('(orientation: landscape) and (max-height: 520px)').matches;
+      gheadEl.style.width = isLandscapeCompact ? '' : Math.max(cssSize, Math.min(wrapRect.width, 280)) + 'px';
+
+      if (cv.width !== pixelSize || cv.height !== pixelSize) {
+        cv.width = pixelSize;
+        cv.height = pixelSize;
+      }
+
+      if (snake.length > 0) draw();
+    }
+
+    if (typeof ResizeObserver !== 'undefined') {
+      const ro = new ResizeObserver(function () {
+        if ($('game').classList.contains('active')) resizeCanvas();
+      });
+      ro.observe(stageWrap);
+    }
+    window.addEventListener('resize', function () {
+      if ($('game').classList.contains('active')) resizeCanvas();
+    });
+
+    function startRenderLoop() {
+      if (rafId !== null) return;
+      const loop = function () {
+        if (state !== 'playing' && state !== 'ready') {
+          rafId = null;
+          return;
+        }
+        draw();
+        rafId = requestAnimationFrame(loop);
+      };
+      rafId = requestAnimationFrame(loop);
+    }
+
+    function stopRenderLoop() {
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+    }
+
+    function updatePauseButton() {
+      const canPause = state === 'playing';
+      $('btnPause').disabled = !canPause;
+      $('btnPause').classList.toggle('pause-hidden', !canPause);
+    }
+
+    function newRound() {
+      score = 0;
+      secondChanceUsed = false;
+      $('score').textContent = '0';
+      respawn();
+      state = 'ready';
+      updatePauseButton();
+      const a = currentAnimal();
+      showOverlay(
+        t('ready'),
+        t('eatGoal') + ' ' + pick(a.foodName) + ' ' + a.food + '\n' + t('pressDir'),
+        t('play'),
+        false,
+        false
+      );
+      draw();
+      startRenderLoop();
+    }
+
+    function respawn() {
+      const m = G / 2;
+      snake = [{ x: m, y: m }, { x: m - 1, y: m }, { x: m - 2, y: m }];
+      dir = { x: 1, y: 0 };
+      queue = [];
+      placeFood();
+    }
+
+    function placeFood() {
+      const free = [];
+      for (let x = 0; x < G; x++) {
+        for (let y = 0; y < G; y++) {
+          if (!snake.some(c => c.x === x && c.y === y)) free.push({ x, y });
+        }
+      }
+      food = free.length ? free[Math.floor(Math.random() * free.length)] : null;
+    }
+
+    function schedule(ms) {
+      clearTimeout(timer);
+      timer = setTimeout(step, ms);
+    }
+
+    function pauseGameLoopOnly() {
+      clearTimeout(timer);
+      timer = null;
+      stopRenderLoop();
+    }
+
+    function stopGame() {
+      pauseGameLoopOnly();
+      state = 'menu';
+      updatePauseButton();
+    }
+
+    // Score envoyé à YouTube (entier positif uniquement)
+    function sendScore(value) {
+      if (!inPlayables) return;
+      const intScore = Math.trunc(Number(value));
+      if (!Number.isSafeInteger(intScore) || intScore < 0) return;
+      safe(function () {
+        const p = ytgame.engagement.sendScore({ value: intScore });
+        if (p && typeof p.catch === 'function') p.catch(function () {});
+      });
+    }
+
+    function pauseGame() {
+      if (state !== 'playing') return;
+      state = 'paused';
+      pauseGameLoopOnly();
+      updatePauseButton();
+      draw();
+      showOverlay(t('paused'), t('pausedText'), t('resume'), false, true);
+    }
+
+    function resumeGame() {
+      if (state !== 'paused' || systemPaused || adBusy) return;
+      state = 'playing';
+      updatePauseButton();
+      $('overlay').classList.add('hidden');
+      startRenderLoop();
+      schedule(600);
+    }
+
+    $('btnPause').onclick = pauseGame;
+
+    function onSystemPause() {
+      playablesHostActive = true;
+      systemPaused = true;
+      pauseGame();
+      flushCloud();
+      syncAudioState();
+    }
+
+    function onSystemResume() {
+      playablesHostActive = true;
+      systemPaused = false;
+      if (inPlayables) {
+        safe(function () {
+          const sdkAudio = !!ytgame.system.isAudioEnabled();
+          if (sdkAudio || ytAudioSynced) {
+            audioEnabled = sdkAudio;
+          }
+        });
+      }
+      updateSoundButton();
+      syncAudioState();
+    }
+
+    // Évite tout conflit avec YouTube : visibilitychange utilisé uniquement hors Playables
+    if (!inPlayables) {
+      document.addEventListener('visibilitychange', function () {
+        if (document.hidden) {
+          pauseGame();
+          syncAudioState();
+        } else {
+          syncAudioState();
+        }
+      });
+    }
+
+    function begin() {
+      if (systemPaused || adBusy) return;
+      state = 'playing';
+      updatePauseButton();
+      $('overlay').classList.add('hidden');
+      startRenderLoop();
+      schedule(speed());
+    }
+
+    function speed() {
+      return Math.max(70, 150 - score * 3);
+    }
+
+    function step() {
+      if (state !== 'playing' || systemPaused || adBusy) return;
+      if (queue.length) dir = queue.shift();
+
+      const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
+      if (head.x < 0 || head.x >= G || head.y < 0 || head.y >= G) {
+        gameOver(t('ouch'), t('wall'));
+        return;
+      }
+
+      const eats = food && head.x === food.x && head.y === food.y;
+      const body = eats ? snake : snake.slice(0, -1);
+      if (body.some(c => c.x === head.x && c.y === head.y)) {
+        gameOver(t('ouch'), t('tail'));
+        return;
+      }
+
+      snake.unshift(head);
+      if (eats) {
+        score++;
+        beep(660, 70);
+        sendScore(score);
+        save.coins++;
+        persist();
+        updateCoins();
+        $('score').textContent = String(score);
+        placeFood();
+        if (!food) {
+          gameOver(t('bravo'), t('full'));
+          return;
+        }
+      } else {
+        snake.pop();
+      }
+      draw();
+      schedule(speed());
+    }
+
+    function gameOver(title, text) {
+      state = 'over';
+      pauseGameLoopOnly();
+      updatePauseButton();
+      beep(180, 300);
+      sendScore(score);
+      draw();
+      showOverlay(title, text + '\n' + t('score') + ' ' + score, t('replay'), !secondChanceUsed, true);
+    }
+
+    function showOverlay(title, text, mainLabel, withSecond, withMenu) {
+      $('ovTitle').textContent = title;
+      $('ovText').textContent = text;
+      $('ovMain').textContent = mainLabel;
+      $('ovSecond').classList.toggle('hidden', !withSecond);
+      $('ovMenu').classList.toggle('hidden', !withMenu);
+      $('overlay').classList.remove('hidden');
+    }
+
+    $('ovMain').onclick = function () {
+      if (adBusy) return;
+      systemPaused = false;
+      syncAudioState();
+      if (state === 'paused') { resumeGame(); return; }
+      if (state === 'over') newRound();
+      begin();
+    };
+
+    $('ovSecond').onclick = () => playAd(t('adRewardResume'), function () {
+      systemPaused = false;
+      secondChanceUsed = true;
+      respawn();
+      $('overlay').classList.add('hidden');
+      state = 'playing';
+      updatePauseButton();
+      draw();
+      startRenderLoop();
+      schedule(700);
+    });
+
+    // ====== 9. DIRECTIONS & DESSIN ======
+    function turn(dx, dy) {
+      if (adBusy || systemPaused) return;
+      if (state === 'ready') begin();
+      if (state !== 'playing') return;
+      const last = queue.length ? queue[queue.length - 1] : dir;
+      if (dx === -last.x && dy === -last.y) return;
+      if (dx === last.x && dy === last.y) return;
+      if (queue.length < 2) queue.push({ x: dx, y: dy });
+    }
+
+    function draw() {
+      const a = currentAnimal();
+      const T = boardCssSize / G;
+
+      ctx.setTransform(boardDpr, 0, 0, boardDpr, 0, 0);
+      ctx.fillStyle = currentDecor().color;
+      ctx.fillRect(0, 0, boardCssSize, boardCssSize);
+
+      ctx.fillStyle = 'rgba(255,255,255,0.035)';
+      for (let x = 0; x < G; x++) {
+        for (let y = 0; y < G; y++) {
+          if ((x + y) % 2) ctx.fillRect(x * T, y * T, T, T);
+        }
+      }
+
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const emojiFont = 'px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+
+      if (food) {
+        const fx = (food.x + 0.5) * T;
+        const fy = (food.y + 0.5) * T;
+        const pulse = 1 + 0.12 * Math.sin(Date.now() / 150);
+        ctx.beginPath();
+        ctx.arc(fx, fy, T * 0.62 * pulse, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255,255,255,0.28)';
+        ctx.fill();
+        ctx.lineWidth = Math.max(2, T * 0.08);
+        ctx.strokeStyle = '#ffc94d';
+        ctx.stroke();
+        ctx.fillStyle = '#fff';
+        ctx.font = T + emojiFont;
+        ctx.fillText(a.food, fx, fy + T * 0.05);
+      }
+
+      ctx.fillStyle = a.body;
+      const pad = Math.max(1.5, T * 0.07);
+      const rad = Math.max(4, T * 0.23);
+      for (let i = snake.length - 1; i > 0; i--) {
+        ctx.beginPath();
+        if (typeof ctx.roundRect === 'function') {
+          ctx.roundRect(snake[i].x * T + pad, snake[i].y * T + pad, T - pad * 2, T - pad * 2, rad);
+        } else {
+          ctx.rect(snake[i].x * T + pad, snake[i].y * T + pad, T - pad * 2, T - pad * 2);
+        }
+        ctx.fill();
+      }
+
+      if (snake.length > 0) {
+        const hx = (snake[0].x + 0.5) * T;
+        const hy = (snake[0].y + 0.5) * T;
+        if (a.id === 'snake') {
+          drawSnakeHead(hx, hy, T, dir, a.body);
+        } else {
+          ctx.fillStyle = '#fff';
+          ctx.font = (T * 0.92) + emojiFont;
+          ctx.fillText(a.head, hx, hy + T * 0.05);
+        }
+      }
+    }
+
+    function drawSnakeHead(cx, cy, T, d, color) {
+      const angle = Math.atan2(d.y, d.x);
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(angle);
+
+      // Langue fourchue rouge animée
+      const tip = T * (0.58 + 0.08 * Math.sin(Date.now() / 120));
+      ctx.strokeStyle = '#ff4d6d';
+      ctx.lineWidth = Math.max(1.5, T * 0.07);
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(T * 0.42, 0);
+      ctx.lineTo(tip, 0);
+      ctx.moveTo(tip - T * 0.03, 0);
+      ctx.lineTo(tip + T * 0.09, -T * 0.10);
+      ctx.moveTo(tip - T * 0.03, 0);
+      ctx.lineTo(tip + T * 0.09, T * 0.10);
+      ctx.stroke();
+
+      // Tête arrondie de serpent (plus large à l'arrière, museau affiné devant)
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.ellipse(T * 0.02, 0, T * 0.44, T * 0.39, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.lineWidth = Math.max(1.5, T * 0.06);
+      ctx.strokeStyle = '#1b8a4b';
+      ctx.stroke();
+
+      // Yeux expressifs
+      const eyeX = T * 0.08;
+      const eyeY = T * 0.20;
+      const eyeR = T * 0.13;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(eyeX, -eyeY, eyeR, 0, Math.PI * 2);
+      ctx.arc(eyeX, eyeY, eyeR, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Pupilles orientées vers l'avant
+      ctx.fillStyle = '#0e0f1c';
+      ctx.beginPath();
+      ctx.arc(eyeX + T * 0.04, -eyeY, eyeR * 0.56, 0, Math.PI * 2);
+      ctx.arc(eyeX + T * 0.04, eyeY, eyeR * 0.56, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Reflet blanc dans les yeux
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(eyeX + T * 0.06, -eyeY - eyeR * 0.2, eyeR * 0.22, 0, Math.PI * 2);
+      ctx.arc(eyeX + T * 0.06, eyeY - eyeR * 0.2, eyeR * 0.22, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Narines
+      ctx.fillStyle = '#135e33';
+      ctx.beginPath();
+      ctx.arc(T * 0.30, -T * 0.09, Math.max(1, T * 0.035), 0, Math.PI * 2);
+      ctx.arc(T * 0.30, T * 0.09, Math.max(1, T * 0.035), 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    // ====== 10. COMMANDES : CLAVIER (Flèches, WASD, ZQSD) & SWIPE TACTILE ======
+    const KEYS = {
+      ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0],
+      w: [0, -1], z: [0, -1], s: [0, 1], a: [-1, 0], q: [-1, 0], d: [1, 0]
+    };
+
+    document.addEventListener('keydown', function (e) {
+      if (!$('game').classList.contains('active') || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (adBusy) return;
+
+      if (e.key === 'Escape' || e.key.toLowerCase() === 'p') {
+        if (state === 'playing') { e.preventDefault(); pauseGame(); }
+        else if (state === 'paused') { e.preventDefault(); resumeGame(); }
+        return;
+      }
+
+      if ((e.key === 'Enter' || e.key === ' ') && !$('overlay').classList.contains('hidden')) {
+        e.preventDefault();
+        $('ovMain').click();
+        return;
+      }
+
+      const dirKey = KEYS[e.key.length === 1 ? e.key.toLowerCase() : e.key];
+      if (!dirKey) return;
+      e.preventDefault();
+      turn(dirKey[0], dirKey[1]);
+    });
+
+    // Glissement tactile fluide sur la zone de jeu (supporte l'écran Prêt ? et les enchaînements)
+    let activePointerId = null;
+    let sx = 0;
+    let sy = 0;
+    let swiped = false;
+    const SWIPE_THRESHOLD = 22;
+
+    stageEl.addEventListener('pointerdown', function (e) {
+      if (activePointerId !== null) return;
+      if (e.target && typeof e.target.closest === 'function' && e.target.closest('button')) return;
+      activePointerId = e.pointerId;
+      sx = e.clientX;
+      sy = e.clientY;
+      swiped = false;
+    });
+
+    stageEl.addEventListener('pointermove', function (e) {
+      if (e.pointerId !== activePointerId) return;
+      const dx = e.clientX - sx;
+      const dy = e.clientY - sy;
+      if (Math.max(Math.abs(dx), Math.abs(dy)) < SWIPE_THRESHOLD) return;
+      if (Math.abs(dx) > Math.abs(dy)) turn(dx > 0 ? 1 : -1, 0);
+      else turn(0, dy > 0 ? 1 : -1);
+      sx = e.clientX;
+      sy = e.clientY;
+      swiped = true;
+    });
+
+    function clearPointer(e) {
+      if (e.pointerId !== activePointerId) return;
+      if (!swiped && e.type === 'pointerup') {
+        const dx = e.clientX - sx;
+        const dy = e.clientY - sy;
+        if (Math.max(Math.abs(dx), Math.abs(dy)) >= SWIPE_THRESHOLD) {
+          if (Math.abs(dx) > Math.abs(dy)) turn(dx > 0 ? 1 : -1, 0);
+          else turn(0, dy > 0 ? 1 : -1);
+        }
+      }
+      activePointerId = null;
+    }
+
+    stageEl.addEventListener('pointerup', clearPointer);
+    stageEl.addEventListener('pointercancel', clearPointer);
+
+    // ====== 11. DÉMARRAGE ======
+    async function boot() {
+      if (inPlayables) {
+        let isRegisteringAudioCb = true;
+        safe(() => ytgame.system.onAudioEnabledChange(function (on) {
+          if (isRegisteringAudioCb && !on) {
+            // Le SDK YouTube Playables rejoue { R: false } par défaut à l'inscription
+            // avant tout événement réel de l'hôte (ou dans une iframe hors YouTube).
+            return;
+          }
+          playablesHostActive = true;
+          ytAudioSynced = true;
+          setAudio(on);
+        }));
+        isRegisteringAudioCb = false;
+        safe(() => ytgame.system.onPause(onSystemPause));
+        safe(() => ytgame.system.onResume(onSystemResume));
+      }
+
+      applyLanguage();
+      updateCoins();
+
+      await Promise.race([
+        new Promise(resolve => requestAnimationFrame(resolve)),
+        new Promise(resolve => setTimeout(resolve, 300))
+      ]);
+
+      if (inPlayables) {
+        safe(() => ytgame.game.firstFrameReady());
+        safe(() => ytgame.game.gameReady());
+      }
+
+      try {
+        await loadProgress();
+      } catch (e) {
+        saveReady = true;
+      }
+
+      if (inPlayables && playablesHostActive) {
+        safe(function () {
+          const sdkAudio = !!ytgame.system.isAudioEnabled();
+          if (sdkAudio || ytAudioSynced) {
+            setAudio(sdkAudio);
+          }
+        });
+      }
+
+      applyLanguage();
+      updateCoins();
+      if ($('shop').classList.contains('active')) renderShop();
+    }
+
+    boot();
+  })();
 </script>
 </body>
 </html>
