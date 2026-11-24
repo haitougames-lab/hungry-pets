@@ -7,9 +7,6 @@
 <script src="https://www.youtube.com/game_api/v1"></script>
 <title>HUNGRY PETS</title>
 <meta name="description" content="HUNGRY PETS - Jeu d'arcade HTML5 immersif compatible YouTube Playables.">
-<meta property="og:title" content="HUNGRY PETS">
-<meta property="og:description" content="HUNGRY PETS - Jeu d'arcade HTML5 immersif compatible YouTube Playables.">
-<meta property="og:type" content="website">
 
 <style>
   /* ====== 1. THÈME ET VARIABLES ====== */
@@ -1370,7 +1367,13 @@
       if (!$('game').classList.contains('active') || e.ctrlKey || e.metaKey || e.altKey) return;
       if (adBusy) return;
 
-      if (e.key === 'Escape' || e.key.toLowerCase() === 'p') {
+      if (e.key === 'Escape') {
+        if (state === 'playing') pauseGame();
+        else if (state === 'paused') resumeGame();
+        return;
+      }
+
+      if (e.key.toLowerCase() === 'p') {
         if (state === 'playing') { e.preventDefault(); pauseGame(); }
         else if (state === 'paused') { e.preventDefault(); resumeGame(); }
         return;
